@@ -1,0 +1,3 @@
+[global]
+logfile = "/tmp/taskmaster.log"
+loglevel = "info"
