@@ -2,6 +2,10 @@
 import argparse
 import sys
 from pathlib import Path
+from pprint import pprint
+
+from config.loader import load_config
+from config.models import ConfigError
 
 EXIT_OK = 0
 EXIT_CONFIG_ERROR = 1
@@ -34,6 +38,15 @@ def main() -> int:
     config_path = get_config_path()
     if config_path is None:
         return EXIT_CONFIG_ERROR
+
+    try:
+        global_cfg, programs_cfg = load_config(config_path)
+    except ConfigError as e:
+        print(f"taskmaster: {e}", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+
+    pprint(global_cfg)
+    pprint(programs_cfg)
 
     return EXIT_OK
 
