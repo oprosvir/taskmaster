@@ -11,6 +11,10 @@ class ConfigError(ValueError):
     """Raised on malformed or invalid config file."""
 
 
+class ConfigNotFoundError(FileNotFoundError):
+    """Raised when the specified config file does not exist."""
+
+
 @dataclass
 class GlobalConfig:
     logfile: str = "/tmp/taskmaster.log"

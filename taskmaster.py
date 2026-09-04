@@ -5,19 +5,18 @@ from pathlib import Path
 from pprint import pprint
 
 from config.loader import load_config
-from config.models import ConfigError
+from config.models import ConfigError, ConfigNotFoundError
 
 EXIT_OK = 0
 EXIT_CONFIG_ERROR = 1
 
 
-def get_config_path() -> Path | None:
+def get_config_path() -> Path:
     """
     Parse the config path from command-line arguments.
 
     Returns:
-        Path: Absolute or relative path to the config file if it exists.
-        None: If the file does not exist or is not a regular file.
+        Path: Path to the config file.
     """
     parser = argparse.ArgumentParser(description="Taskmaster process supervisor")
     parser.add_argument(
@@ -27,21 +26,16 @@ def get_config_path() -> Path | None:
         help="Path to the configuration file (default: ./config.toml)"
     )
     args = parser.parse_args()
-    if args.config.is_file():
-        return args.config
-
-    print(f"Error: Configuration file '{args.config}' not found.", file=sys.stderr)
-    return None
+    if not args.config.is_file():
+        raise ConfigNotFoundError(f"configuration file '{args.config}' not found")
+    return args.config
 
 
 def main() -> int:
-    config_path = get_config_path()
-    if config_path is None:
-        return EXIT_CONFIG_ERROR
-
     try:
+        config_path = get_config_path()
         global_cfg, programs_cfg = load_config(config_path)
-    except ConfigError as e:
+    except (ConfigNotFoundError, ConfigError) as e:
         print(f"taskmaster: {e}", file=sys.stderr)
         return EXIT_CONFIG_ERROR
 
