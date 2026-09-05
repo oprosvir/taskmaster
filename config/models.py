@@ -53,7 +53,7 @@ class ProgramConfig:
     numprocs: int = 1
     autostart: bool = True
     autorestart: str = "unexpected"
-    exitcodes: list[int] = field(default_factory=lambda: [0])
+    exitcodes: set[int] = field(default_factory=lambda: {0})
     starttime: int = 5
     startretries: int = 3
     stopsignal: str = "TERM"
@@ -106,9 +106,12 @@ class ProgramConfig:
             )
 
     def _validate_exitcodes(self):
+        # Convert single int to set, or list to set
         if isinstance(self.exitcodes, int):
-            self.exitcodes = [self.exitcodes]
-        if not isinstance(self.exitcodes, list) or not self.exitcodes:
+            self.exitcodes = {self.exitcodes}
+        elif isinstance(self.exitcodes, list):
+            self.exitcodes = set(self.exitcodes)
+        if not isinstance(self.exitcodes, set) or not self.exitcodes:
             raise ConfigError("exitcodes must be a non-empty list of integers")
         for code in self.exitcodes:
             if not isinstance(code, int) or not (0 <= code <= 255):
