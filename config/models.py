@@ -1,5 +1,6 @@
 import shlex
 import signal
+import pwd
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,10 +20,12 @@ class ConfigNotFoundError(FileNotFoundError):
 class GlobalConfig:
     logfile: str = "/tmp/taskmaster.log"
     loglevel: str = "INFO"
+    user: str = "nobody"
 
     def __post_init__(self):
         self._validate_loglevel()
         self._validate_logfile()
+        self._validate_user()
 
     def _validate_loglevel(self):
         if not isinstance(self.loglevel, str):
@@ -36,14 +39,19 @@ class GlobalConfig:
         self.loglevel = level
 
     def _validate_logfile(self):
-        path = Path(self.logfile)
+        if not isinstance(self.logfile, str) or not self.logfile.strip():
+            raise ConfigError("logfile must be a non-empty path")
+        self.logfile = Path(self.logfile)
+
+    def _validate_user(self):
+        if not isinstance(self.user, str) or not self.user.strip():
+            raise ConfigError("user must be a non-empty string")
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "a"):
-                pass
-        except OSError as e:
-            raise ConfigError(f"cannot open logfile for writing: {path}: {e}") from e
-        self.logfile = path
+            user_info = pwd.getpwnam(self.user)
+        except KeyError:
+            raise ConfigError(f"unknown user: {self.user!r}")
+        if user_info.pw_uid == 0:
+            raise ConfigError("user must not be root")
 
 
 @dataclass

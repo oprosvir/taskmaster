@@ -7,9 +7,11 @@ from pathlib import Path
 from pprint import pprint
 
 from config import ConfigError, ConfigNotFoundError, load_config, diff_programs
+from security import PrivilegeError, drop_privileges
 
 EXIT_OK = 0
 EXIT_CONFIG_ERROR = 1
+EXIT_PRIVILEGE_ERROR = 2
 
 
 def get_config_path() -> Path:
@@ -40,6 +42,14 @@ def main() -> int:
     except (ConfigNotFoundError, ConfigError) as e:
         print(f"[taskmaster]: {e}", file=sys.stderr)
         return EXIT_CONFIG_ERROR
+
+    if os.geteuid() == 0:
+        try:
+            drop_privileges(global_cfg.user)
+        except PrivilegeError as e:
+            print(f"[taskmaster]: {e}", file=sys.stderr)  # log.error
+            return EXIT_PRIVILEGE_ERROR
+        print(f"Dropped privileges to user {global_cfg.user!r}")  # log.info
 
     def handle_sighup(signum, _):
         """Reload the config file and report what changed.

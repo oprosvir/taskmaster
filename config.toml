@@ -1,6 +1,7 @@
 [global]
 logfile = "/tmp/taskmaster.log"
 loglevel = "INFO"
+user = "oprosvir"
 
 [program.test_sleep]
 cmd = "/usr/bin/sleep 300"
