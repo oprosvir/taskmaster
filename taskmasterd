@@ -6,8 +6,14 @@ import sys
 from pathlib import Path
 from pprint import pprint
 
-from config import ConfigError, ConfigNotFoundError, load_config, diff_programs
-from security import PrivilegeError, drop_privileges
+from config import (
+    ConfigError,
+    ConfigNotFoundError,
+    load_config,
+    diff_programs,
+    PrivilegeError,
+    drop_privileges,
+)
 
 EXIT_OK = 0
 EXIT_CONFIG_ERROR = 1
