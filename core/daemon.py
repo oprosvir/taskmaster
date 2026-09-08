@@ -16,8 +16,22 @@ class TaskmasterDaemon:
         self.global_cfg = None
         self.programs_cfg: dict = {}
 
-    def load_initial_config(self):
-        self.global_cfg, self.programs_cfg = load_config(self.config_path)
+    def reload_config(self) -> None:
+        """Reload configuration file, calculate diff, and apply state updates."""
+        new_global, new_programs = load_config(self.config_path)
+
+        diff = diff_programs(self.programs_cfg, new_programs)
+
+        print("[taskmasterd] Config diff summary:", file=sys.stderr)
+        print(f"  - Added:     {sorted(diff.added)}", file=sys.stderr)
+        print(f"  - Removed:   {sorted(diff.removed)}", file=sys.stderr)
+        print(f"  - Changed:   {sorted(diff.changed)}", file=sys.stderr)
+        print(f"  - Unchanged: {sorted(diff.unchanged)}", file=sys.stderr)
+
+        self.global_cfg = new_global
+        self.programs_cfg = new_programs
+
+        # TODO: self.process_manager.apply_diff(diff)
 
     def drop_privileges_if_root(self):
         if os.geteuid() == 0:
@@ -40,24 +54,12 @@ class TaskmasterDaemon:
         """
         print("\n[taskmasterd] SIGHUP received: reloading config...", file=sys.stderr)
         try:
-            new_global, new_programs = load_config(self.config_path)
+            self.reload_config()
             print("[taskmaster] Config reloaded successfully:")
-            pprint(new_global)
-            pprint(new_programs)
+            pprint(self.global_cfg)
+            pprint(self.programs_cfg)
         except (ConfigNotFoundError, ConfigError) as e:
-            print(f"[taskmasterd] Reload error: {e}", file=sys.stderr)
-            return
-
-        diff = diff_programs(self.programs_cfg, new_programs)
-        print("[taskmasterd] Diff summary:", file=sys.stderr)
-        print(f"  - Added:     {sorted(diff.added)}", file=sys.stderr)
-        print(f"  - Removed:   {sorted(diff.removed)}", file=sys.stderr)
-        print(f"  - Changed:   {sorted(diff.changed)}", file=sys.stderr)
-        print(f"  - Unchanged: {sorted(diff.unchanged)}", file=sys.stderr)
-
-        # Update in-memory config for future process management
-        self.global_cfg = new_global
-        self.programs_cfg = new_programs
+            print(f"[taskmasterd] Reload failed, keeping current config. Error: {e}", file=sys.stderr)
 
     def _handle_shutdown(self, signum, frame):
         print("\n[taskmasterd] Shutting down.", file=sys.stderr)

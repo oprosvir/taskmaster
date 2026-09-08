@@ -29,26 +29,28 @@ def get_config_path() -> Path:
     return args.config
 
 
+def _fail(message: str, code: int) -> int:
+    print(f"[taskmasterd] {message}", file=sys.stderr)
+    return code
+
+
 def main() -> int:
     try:
         config_path = get_config_path()
     except ConfigNotFoundError as e:
-        print(f"[taskmaster]: {e}", file=sys.stderr)
-        return EXIT_CONFIG_ERROR
+        return _fail(str(e), EXIT_CONFIG_ERROR)
 
     daemon = TaskmasterDaemon(config_path)
 
     try:
-        daemon.load_initial_config()
+        daemon.reload_config()
     except ConfigError as e:
-        print(f"[taskmasterd] {e}", file=sys.stderr)
-        return EXIT_CONFIG_ERROR
+        return _fail(str(e), EXIT_CONFIG_ERROR)
 
     try:
         daemon.drop_privileges_if_root()
     except PrivilegeError as e:
-        print(f"[taskmaster]: {e}", file=sys.stderr)
-        return EXIT_PRIVILEGE_ERROR
+        return _fail(str(e), EXIT_PRIVILEGE_ERROR)
 
     daemon.register_signal_handlers()
     daemon.run()
