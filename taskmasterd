@@ -5,7 +5,7 @@ from pathlib import Path
 
 from config import ConfigError, ConfigNotFoundError, PrivilegeError
 from core import TaskmasterDaemon
-from common.exit_codes import EXIT_CONFIG_ERROR, EXIT_PRIVILEGE_ERROR
+from common.exit_codes import EXIT_CONFIG_ERROR, EXIT_PRIVILEGE_ERROR, EXIT_OK
 
 
 def get_config_path() -> Path:
@@ -52,8 +52,8 @@ def main() -> int:
     except PrivilegeError as e:
         return _fail(str(e), EXIT_PRIVILEGE_ERROR)
 
-    daemon.register_signal_handlers()
     daemon.run()
+    return EXIT_OK
 
 
 if __name__ == "__main__":
