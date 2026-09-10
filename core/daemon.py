@@ -5,6 +5,7 @@ from pprint import pprint
 
 from config import load_config, drop_privileges, diff_programs
 from .event_loop import EventLoop
+from .manager import ProcessManager
 
 
 class TaskmasterDaemon:
@@ -12,29 +13,29 @@ class TaskmasterDaemon:
 
     def __init__(self, config_path: Path):
         self.config_path = config_path
-        self.global_cfg = None
-        self.programs_cfg: dict = {}
-        self.event_loop = None
+        self.global_cfg, self.programs_cfg = load_config(self.config_path)
+        self.event_loop = EventLoop(daemon=self)
+        self.manager = ProcessManager(self.programs_cfg)
 
-    def reload_config(self) -> None:
+    def reload_config(self):
         """Reload configuration file, calculate diff, and apply state updates."""
         new_global, new_programs = load_config(self.config_path)
         diff = diff_programs(self.programs_cfg, new_programs)
 
-        if self.programs_cfg:
-            print("[taskmaster] Config reloaded successfully.")
-            print("[taskmasterd] Config diff summary:", file=sys.stderr)
-            print(f"  - Added:     {sorted(diff.added)}", file=sys.stderr)
-            print(f"  - Removed:   {sorted(diff.removed)}", file=sys.stderr)
-            print(f"  - Changed:   {sorted(diff.changed)}", file=sys.stderr)
-            print(f"  - Unchanged: {sorted(diff.unchanged)}", file=sys.stderr)
+        print("[taskmaster] Config reloaded successfully.")
+        print("[taskmasterd] Config diff summary:", file=sys.stderr)
+        print(f"  - Added:     {sorted(diff.added)}", file=sys.stderr)
+        print(f"  - Removed:   {sorted(diff.removed)}", file=sys.stderr)
+        print(f"  - Changed:   {sorted(diff.changed)}", file=sys.stderr)
+        print(f"  - Unchanged: {sorted(diff.unchanged)}", file=sys.stderr)
+
+        # TODO: SIGHUP: reload config
+        # self.manager.apply_diff(diff, new_programs)
 
         self.global_cfg = new_global
         self.programs_cfg = new_programs
         pprint(self.global_cfg)
         pprint(self.programs_cfg)
-
-        # TODO: self.process_manager.apply_diff(diff)
 
     def drop_privileges_if_root(self):
         if os.geteuid() == 0:
@@ -44,8 +45,7 @@ class TaskmasterDaemon:
     def shutdown(self):
         print("\n[taskmasterd] Shutting down.", file=sys.stderr)
         # TODO:
-        # if self.process_manager:
-        #     self.process_manager.stop_all()
+        # self.manager.stop_all()
 
     def run(self):
         """Start the event loop and process daemon signals.
@@ -53,9 +53,10 @@ class TaskmasterDaemon:
         The event loop handles SIGHUP for configuration reloads and
         SIGINT/SIGTERM for graceful shutdown.
         """
-        print("[taskmaster] Initial configuration loaded successfully.")
+        print("[taskmasterd] Initial configuration loaded successfully:")
+        pprint(self.global_cfg)
+        pprint(self.programs_cfg)
         print(f"\n[taskmasterd] Running (PID: {os.getpid()}). Press Ctrl+C to exit.")
         print("Test SIGHUP with: kill -HUP <PID>")
 
-        self.event_loop = EventLoop(daemon=self)
         self.event_loop.run()

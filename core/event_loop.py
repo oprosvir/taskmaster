@@ -36,6 +36,7 @@ class EventLoop:
         self.is_running = True
 
         print("[event_loop] Started.")
+        self.daemon.manager.start_all()
 
         while self.is_running:
             if self.flags.shutdown:

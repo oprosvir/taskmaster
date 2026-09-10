@@ -4,15 +4,20 @@ loglevel = "INFO"
 user = "oprosvir"
 
 [program.test_sleep]
-cmd = "/usr/bin/sleep 300"
-numprocs = 1
+cmd = "/usr/bin/sleep 30"
 autostart = true
-autorestart = "unexpected"
-exitcodes = [0]
-starttime = 2
-startretries = 3
-stopsignal = "TERM"
-stoptime = 5
-stdout = "/tmp/test_sleep.stdout"
-stderr = "/tmp/test_sleep.stderr"
 workingdir = "/tmp"
+
+[program.test_true]
+cmd = "/usr/bin/true"
+autostart = true
+
+[program.test_false]
+cmd = "/usr/bin/false"
+autostart = true
+startretries = 3
+
+[program.test_workers]
+cmd = "/usr/bin/sleep 30"
+numprocs = 3
+autostart = true

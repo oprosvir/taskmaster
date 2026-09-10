@@ -40,10 +40,8 @@ def main() -> int:
     except ConfigNotFoundError as e:
         return _fail(str(e), EXIT_CONFIG_ERROR)
 
-    daemon = TaskmasterDaemon(config_path)
-
     try:
-        daemon.reload_config()
+        daemon = TaskmasterDaemon(config_path)
     except ConfigError as e:
         return _fail(str(e), EXIT_CONFIG_ERROR)
 
