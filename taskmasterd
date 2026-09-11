@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from config import ConfigError, ConfigNotFoundError, PrivilegeError
-from core import TaskmasterDaemon
+from core.daemon import TaskmasterDaemon
 from common.exit_codes import EXIT_CONFIG_ERROR, EXIT_PRIVILEGE_ERROR, EXIT_OK
 
 
