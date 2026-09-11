@@ -1,59 +1,91 @@
 import subprocess
-import shlex
 import sys
 import time
 import os
-
+from dataclasses import dataclass
 
 from config import ProgramConfig
-from .state import ProcessState
+from .state import ProcessState, ALLOWED_TRANSITIONS, InvalidTransition
 
 
+@dataclass
 class Process:
-    def __init__(self, name: str, config: ProgramConfig):
-        self.name = name
-        self.cfg = config
-
-        self.state = ProcessState.STOPPED
-        self.popen: subprocess.Popen | None = None
-
-        self.start_time: float = 0.0
-        self.stop_time: float = 0.0
-        self.try_count: int = 0
-        self.exit_code: int | None = None
+    name: str
+    config: ProgramConfig
+    state: ProcessState = ProcessState.STOPPED
+    popen: subprocess.Popen | None = None
+    start_time: float | None = None
+    stop_time: float | None = None
+    try_count: int = 0
+    exit_code: int | None = None
 
     @property
     def pid(self) -> int | None:
         return self.popen.pid if self.popen else None
 
-    def start(self) -> None:
+    def poll(self) -> int | None:
+        """Non-blocking check: None if still alive, exit code if dead."""
+        if self.popen is None:
+            return None
+        return self.popen.poll()
+
+    def transition_to(self, new_state: ProcessState):
+        if new_state not in ALLOWED_TRANSITIONS[self.state]:
+            raise InvalidTransition(f"{self.name}: {self.state.name} -> {new_state.name}")
+        self.state = new_state
+
+    def start(self):
         if self.state in (ProcessState.RUNNING, ProcessState.STARTING):
             return
 
-        self.try_count += 1
         self.exit_code = None
+        self.transition_to(ProcessState.STARTING)
+        self.try_count += 1
 
         env = os.environ.copy()
-        env.update(self.cfg.env)
+        env.update(self.config.env)
 
         stdout_dest = subprocess.DEVNULL
         stderr_dest = subprocess.DEVNULL
-        process_umask = self.cfg.umask if self.cfg.umask is not None else -1
+        process_umask = self.config.umask if self.config.umask is not None else -1
 
         try:
-            print(f"[{self.name}] Starting: {self.cfg.cmd}")
+            print(f"[{self.name}] Starting: {self.config.cmd}")
             self.popen = subprocess.Popen(
-                shlex.split(self.cfg.cmd),
+                self.config.argv,
                 shell=False,
-                cwd=self.cfg.workingdir,
+                cwd=self.config.workingdir,
                 env=env,
                 umask=process_umask,
                 stdout=stdout_dest,
                 stderr=stderr_dest,
             )
-            self.state = ProcessState.STARTING
-            self.start_time = time.time()
-        except Exception as e:
-            self.state = ProcessState.BACKOFF
+            self.start_time = time.monotonic()
+        except OSError as e:
+            self.transition_to(ProcessState.BACKOFF)
             self.popen = None
             print(f"[{self.name}] Failed to spawn: {e}", file=sys.stderr)
+
+    def stop(self):
+        """Send the configured stop signal and transition to STOPPING."""
+        if not self.popen or self.state not in (ProcessState.RUNNING, ProcessState.STARTING):
+            return
+
+        try:
+            print(f"[{self.name}] Stopping with {self.config.stopsignal.name}...")
+            self.popen.send_signal(self.config.stopsignal)
+            self.stop_time = time.monotonic()
+            self.transition_to(ProcessState.STOPPING)
+        except ProcessLookupError:
+            return
+
+    def kill(self):
+        """Forcefully terminate — used when graceful stop exceeds stoptime."""
+        if self.popen is None:
+            return
+
+        try:
+            print(f"[{self.name}] Graceful stop timed out; killing process.")
+            self.popen.kill()
+        except ProcessLookupError:
+            return

@@ -44,8 +44,7 @@ class TaskmasterDaemon:
 
     def shutdown(self):
         print("\n[taskmasterd] Shutting down.", file=sys.stderr)
-        # TODO:
-        # self.manager.stop_all()
+        self.manager.stop_all()
 
     def run(self):
         """Start the event loop and process daemon signals.

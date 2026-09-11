@@ -16,7 +16,14 @@ class ProcessManager:
             group.create_processes()
             self.groups[prog_name] = group
 
-    def start_all(self) -> None:
+    def start_all(self):
         """Start every group whose config enables autostart."""
         for group in self.groups.values():
             group.start_if_autostart()
+
+    def stop_all(self):
+        for group in self.groups.values():
+            group.stop_all()
+
+    # TODO: def check_children(self)
+    # TODO: def apply_diff(self, diff: ConfigDiff)

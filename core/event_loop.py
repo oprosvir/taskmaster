@@ -1,7 +1,11 @@
+from __future__ import annotations
 import signal
 import sys
-
+from typing import TYPE_CHECKING
 from config import ConfigNotFoundError, ConfigError
+
+if TYPE_CHECKING:
+    from .daemon import TaskmasterDaemon
 
 
 class SignalFlags:
@@ -14,7 +18,7 @@ class SignalFlags:
 
 
 class EventLoop:
-    def __init__(self, daemon):
+    def __init__(self, daemon: TaskmasterDaemon):
         self.daemon = daemon
         self.flags = SignalFlags()
         self.is_running = False

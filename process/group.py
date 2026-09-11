@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 from config import ProgramConfig
 from .process import Process
+from .state import ProcessState
 
 
 @dataclass
@@ -22,3 +23,8 @@ class ProcessGroup:
         if self.config.autostart:
             for proc in self.processes:
                 proc.start()
+
+    def stop_all(self) -> None:
+        for proc in self.processes:
+            if proc.state in (ProcessState.RUNNING, ProcessState.STARTING):
+                proc.stop()

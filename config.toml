@@ -21,3 +21,6 @@ startretries = 3
 cmd = "/usr/bin/sleep 30"
 numprocs = 3
 autostart = true
+
+[program.test_nonexist]
+cmd = "nonexisting"

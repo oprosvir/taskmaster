@@ -71,6 +71,7 @@ class ProgramConfig:
     env: dict[str, str] = field(default_factory=dict)
     workingdir: str | None = None
     umask: str | None = None
+    argv: list[str] = field(default_factory=list, init=False)
 
     def __post_init__(self):
         self._validate_cmd()
@@ -92,7 +93,7 @@ class ProgramConfig:
         if not isinstance(self.cmd, str) or not self.cmd.strip():
             raise ConfigError("cmd must be a non-empty string")
         try:
-            shlex.split(self.cmd)
+            self.argv = shlex.split(self.cmd)
         except ValueError as e:
             raise ConfigError(f"cmd cannot be parsed: {e}") from e
 
