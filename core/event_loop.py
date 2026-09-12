@@ -1,6 +1,7 @@
 from __future__ import annotations
 import signal
 import sys
+import time
 from typing import TYPE_CHECKING
 from config import ConfigNotFoundError, ConfigError
 
@@ -55,6 +56,9 @@ class EventLoop:
                     self.daemon.reload_config()
                 except (ConfigNotFoundError, ConfigError) as e:
                     print(f"[taskmasterd] Reload failed, keeping current config. Error: {e}", file=sys.stderr)
+
+            self.daemon.manager.check_children()
+            time.sleep(0.1)
 
         self._cleanup()
 

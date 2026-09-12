@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 
 from config import ProgramConfig
-from .state import ProcessState, ALLOWED_TRANSITIONS, InvalidTransition
+from .fsm import ProcessState, ALLOWED_TRANSITIONS, InvalidTransition, spawn_failed
 
 
 @dataclass
@@ -23,6 +23,12 @@ class Process:
     def pid(self) -> int | None:
         return self.popen.pid if self.popen else None
 
+    @property
+    def uptime(self) -> float | None:
+        if self.state != ProcessState.RUNNING or self.start_time is None:
+            return None
+        return time.monotonic() - self.start_time
+
     def poll(self) -> int | None:
         """Non-blocking check: None if still alive, exit code if dead."""
         if self.popen is None:
@@ -30,6 +36,7 @@ class Process:
         return self.popen.poll()
 
     def transition_to(self, new_state: ProcessState):
+        """Validate and apply a state transition on the given process."""
         if new_state not in ALLOWED_TRANSITIONS[self.state]:
             raise InvalidTransition(f"{self.name}: {self.state.name} -> {new_state.name}")
         self.state = new_state
@@ -62,11 +69,11 @@ class Process:
             )
             self.start_time = time.monotonic()
         except OSError as e:
-            self.transition_to(ProcessState.BACKOFF)
             self.popen = None
             print(f"[{self.name}] Failed to spawn: {e}", file=sys.stderr)
+            spawn_failed(self)
 
-    def stop(self):
+    def send_stop_signal(self):
         """Send the configured stop signal and transition to STOPPING."""
         if not self.popen or self.state not in (ProcessState.RUNNING, ProcessState.STARTING):
             return

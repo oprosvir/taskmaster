@@ -7,7 +7,8 @@ class ProcessManager:
         self.groups: dict[str, ProcessGroup] = {}
         self.setup_programs(programs_cfg)
 
-    def setup_programs(self, programs_cfg: dict[str, ProgramConfig]):
+    def setup_programs(self, programs_cfg: dict[str, ProgramConfig]) -> None:
+        """Create process groups from validated program configurations."""
         # {"nginx": ProcessGroup(processes=[<Process name="nginx">])}
         # {"worker": ProcessGroup(processes=[<Process name="worker_0">,
         #                                    <Process name="worker_1">])}
@@ -22,8 +23,13 @@ class ProcessManager:
             group.start_if_autostart()
 
     def stop_all(self):
+        """Request a graceful stop for every active process."""
         for group in self.groups.values():
             group.stop_all()
 
-    # TODO: def check_children(self)
+    def check_children(self):
+        """Advance the state of every managed process."""
+        for group in self.groups.values():
+            group.tick()
+
     # TODO: def apply_diff(self, diff: ConfigDiff)
