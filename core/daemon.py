@@ -16,6 +16,7 @@ class TaskmasterDaemon:
         self.global_cfg, self.programs_cfg = load_config(self.config_path)
         self.event_loop = EventLoop(daemon=self)
         self.manager = ProcessManager(self.programs_cfg)
+        self.drop_privileges_if_root()
 
     def reload_config(self):
         """Reload configuration file, calculate diff, and apply state updates."""

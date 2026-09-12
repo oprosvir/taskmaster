@@ -5,7 +5,9 @@ from pathlib import Path
 
 from config import ConfigError, ConfigNotFoundError, PrivilegeError
 from core.daemon import TaskmasterDaemon
-from common.exit_codes import EXIT_CONFIG_ERROR, EXIT_PRIVILEGE_ERROR, EXIT_OK
+
+EXIT_OK = 0
+EXIT_ERROR = 1
 
 
 def get_config_path() -> Path:
@@ -29,26 +31,13 @@ def get_config_path() -> Path:
     return args.config
 
 
-def _fail(message: str, code: int) -> int:
-    print(f"[taskmasterd] {message}", file=sys.stderr)
-    return code
-
-
 def main() -> int:
     try:
         config_path = get_config_path()
-    except ConfigNotFoundError as e:
-        return _fail(str(e), EXIT_CONFIG_ERROR)
-
-    try:
         daemon = TaskmasterDaemon(config_path)
-    except ConfigError as e:
-        return _fail(str(e), EXIT_CONFIG_ERROR)
-
-    try:
-        daemon.drop_privileges_if_root()
-    except PrivilegeError as e:
-        return _fail(str(e), EXIT_PRIVILEGE_ERROR)
+    except (ConfigNotFoundError, ConfigError, PrivilegeError) as error:
+        print(f"[taskmasterd] {error}", file=sys.stderr)
+        return EXIT_ERROR
 
     daemon.run()
     return EXIT_OK
