@@ -40,6 +40,7 @@ class Process:
         """Validate and apply a state transition on the given process."""
         if new_state not in ALLOWED_TRANSITIONS[self.state]:
             raise InvalidTransition(f"{self.name}: {self.state.name} -> {new_state.name}")
+        print(f"[{self.name}] State: {self.state.name} -> {new_state.name}")
         self.state = new_state
 
     def start(self):

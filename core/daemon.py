@@ -23,15 +23,14 @@ class TaskmasterDaemon:
         new_global, new_programs = load_config(self.config_path)
         diff = diff_programs(self.programs_cfg, new_programs)
 
-        print("[taskmaster] Config reloaded successfully.")
+        print("[taskmasterd] Config reloaded successfully.")
         print("[taskmasterd] Config diff summary:", file=sys.stderr)
         print(f"  - Added:     {sorted(diff.added)}", file=sys.stderr)
         print(f"  - Removed:   {sorted(diff.removed)}", file=sys.stderr)
         print(f"  - Changed:   {sorted(diff.changed)}", file=sys.stderr)
         print(f"  - Unchanged: {sorted(diff.unchanged)}", file=sys.stderr)
 
-        # TODO: SIGHUP: reload config
-        # self.manager.apply_diff(diff, new_programs)
+        self.manager.apply_diff(diff)
 
         self.global_cfg = new_global
         self.programs_cfg = new_programs

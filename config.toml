@@ -3,6 +3,8 @@ logfile = "/tmp/taskmaster.log"
 loglevel = "INFO"
 user = "oprosvir"
 
+# Signal handling tests:
+# each program uses a different stop signal.
 [program.test_sleep_int]
 cmd = "/usr/bin/sleep 30"
 autostart = true
@@ -21,12 +23,14 @@ stopsignal = "USR1"
 cmd = "/usr/bin/sleep 300"
 stopsignal = "QUIT"
 
+# Forced-stop test: the process ignores SIGTERM until SIGKILL is sent.
 [program.test_ignore_term]
 cmd = '/usr/bin/python3 -c "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(300)"'
 autostart = true
 stopsignal = "TERM"
 stoptime = 3
 
+# Expected and unexpected exit codes.
 [program.test_true]
 cmd = "/usr/bin/true"
 autostart = true
@@ -36,14 +40,17 @@ cmd = "/usr/bin/false"
 autostart = true
 startretries = 3
 
+# Multiple process instances.
 [program.test_workers]
 cmd = "/usr/bin/sleep 30"
 numprocs = 3
 autostart = true
 
+# Spawn failure and retry exhaustion.
 [program.test_nonexist]
 cmd = "nonexisting"
 
+# Graceful shutdown with SIGINT.
 [program.test_server]
 cmd = "/usr/bin/python3 -m http.server 8080"
 starttime = 3
