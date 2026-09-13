@@ -29,7 +29,7 @@ ALLOWED_TRANSITIONS: dict[ProcessState, set[ProcessState]] = {
     ProcessState.RUNNING: {ProcessState.STOPPING, ProcessState.EXITED},
     ProcessState.STOPPING: {ProcessState.EXITED},
     ProcessState.EXITED: {ProcessState.STARTING, ProcessState.STOPPED},
-    ProcessState.BACKOFF: {ProcessState.STARTING, ProcessState.FATAL},
+    ProcessState.BACKOFF: {ProcessState.STARTING, ProcessState.FATAL, ProcessState.STOPPED},
     ProcessState.FATAL: set(),
 }
 
@@ -65,12 +65,15 @@ def _tick_starting(proc: Process):
 
 def _handle_backoff(proc: Process):
     """Retry a failed startup or mark the process as permanently failed."""
+    if proc.shutting_down:
+        proc.transition_to(ProcessState.STOPPED)
+        return
     if proc.try_count <= proc.config.startretries:
         print(f"[{proc.name}] Retrying startup " f"({proc.try_count}/{proc.config.startretries}).")
         proc.start()
     else:
-        proc.transition_to(ProcessState.FATAL)
         print(f"[{proc.name}] Startup retries exhausted; entering FATAL.")
+        proc.transition_to(ProcessState.FATAL)
 
 
 def spawn_failed(proc: Process):
@@ -90,6 +93,10 @@ def _tick_running(proc: Process):
 
 def _handle_exit(proc: Process):
     """Restart or stop a process after it exits according to its config."""
+    if proc.shutting_down:
+        proc.transition_to(ProcessState.STOPPED)
+        return
+
     expected = proc.exit_code in proc.config.exitcodes
     should_restart = proc.config.autorestart == "always" or (proc.config.autorestart == "unexpected" and not expected)
     proc.transition_to(ProcessState.STOPPED)
@@ -103,6 +110,7 @@ def _tick_stopping(proc: Process):
     exit_code = proc.poll()
     if exit_code is not None:
         proc.exit_code = exit_code
+        print(f"[{proc.name}] Stopped with exit code {exit_code}.")
         proc.transition_to(ProcessState.EXITED)
         proc.transition_to(ProcessState.STOPPED)
         return

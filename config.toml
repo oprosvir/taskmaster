@@ -3,10 +3,29 @@ logfile = "/tmp/taskmaster.log"
 loglevel = "INFO"
 user = "oprosvir"
 
-[program.test_sleep]
+[program.test_sleep_int]
 cmd = "/usr/bin/sleep 30"
 autostart = true
 workingdir = "/tmp"
+stopsignal = "INT"
+
+[program.test_sleep_hup]
+cmd = "/usr/bin/sleep 300"
+stopsignal = "HUP"
+
+[program.test_sleep_usr1]
+cmd = "/usr/bin/sleep 300"
+stopsignal = "USR1"
+
+[program.test_sleep_quit]
+cmd = "/usr/bin/sleep 300"
+stopsignal = "QUIT"
+
+[program.test_ignore_term]
+cmd = '/usr/bin/python3 -c "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(300)"'
+autostart = true
+stopsignal = "TERM"
+stoptime = 3
 
 [program.test_true]
 cmd = "/usr/bin/true"
@@ -28,3 +47,4 @@ cmd = "nonexisting"
 [program.test_server]
 cmd = "/usr/bin/python3 -m http.server 8080"
 starttime = 3
+stopsignal = "INT"

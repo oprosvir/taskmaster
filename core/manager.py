@@ -1,5 +1,6 @@
 from config import ProgramConfig
 from process.group import ProcessGroup
+from process.fsm import ProcessState
 
 
 class ProcessManager:
@@ -26,6 +27,15 @@ class ProcessManager:
         """Request a graceful stop for every active process."""
         for group in self.groups.values():
             group.stop_all()
+
+    def all_stopped(self) -> bool:
+        """True once every process has reached a terminal, non-running state."""
+        terminal_states = (ProcessState.STOPPED, ProcessState.FATAL)
+        return all(
+            proc.state in terminal_states
+            for group in self.groups.values()
+            for proc in group.processes
+        )
 
     def check_children(self):
         """Advance the state of every managed process."""

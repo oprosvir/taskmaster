@@ -8,6 +8,9 @@ from config import ConfigNotFoundError, ConfigError
 if TYPE_CHECKING:
     from .daemon import TaskmasterDaemon
 
+SLEEP_TIMEOUT = 0.1
+MAX_SHUTDOWN_WAIT = 30
+
 
 class SignalFlags:
     def __init__(self) -> None:
@@ -45,9 +48,7 @@ class EventLoop:
 
         while self.is_running:
             if self.flags.shutdown:
-                print("\n[event_loop] Shutdown requested via signal.")
-                self.daemon.shutdown()
-                break
+                self._handle_shutdown_flow()
 
             if self.flags.sighup:
                 self.flags.reset_hup()
@@ -58,10 +59,26 @@ class EventLoop:
                     print(f"[taskmasterd] Reload failed, keeping current config. Error: {e}", file=sys.stderr)
 
             self.daemon.manager.check_children()
-            time.sleep(0.1)
+            time.sleep(SLEEP_TIMEOUT)
 
         self._cleanup()
 
     def _cleanup(self):
-        self.is_running = False
+        # TODO: Bonus: close unix socket
         print("[event_loop] Stopped gracefully.")
+
+    def _handle_shutdown_flow(self):
+        """Signal all processes to stop, then keep ticking until they actually exit"""
+        print("\n[event_loop] Shutdown requested via signal.")
+        self.is_running = False
+        self.daemon.shutdown()
+
+        shutdown_deadline = time.monotonic() + MAX_SHUTDOWN_WAIT
+        while not self.daemon.manager.all_stopped():
+            if time.monotonic() > shutdown_deadline:
+                print("[event_loop] Shutdown timeout exceeded, force-exiting.", file=sys.stderr)
+                break
+            self.daemon.manager.check_children()
+            time.sleep(SLEEP_TIMEOUT)
+
+        print("[event_loop] All processes stopped.")

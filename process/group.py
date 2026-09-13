@@ -29,8 +29,11 @@ class ProcessGroup:
     def stop_all(self) -> None:
         """Request a graceful stop for every active process in the group."""
         for proc in self.processes:
+            proc.shutting_down = True
             if proc.state in (fsm.ProcessState.RUNNING, fsm.ProcessState.STARTING):
                 proc.send_stop_signal()
+            else:
+                print(f"[{proc.name}] Stop skipped; current state is " f"{proc.state.name}.")
 
     def tick(self) -> None:
         """Advance the state of every process in the group."""

@@ -18,6 +18,7 @@ class Process:
     stop_time: float | None = None
     try_count: int = 0
     exit_code: int | None = None
+    shutting_down: bool = False
 
     @property
     def pid(self) -> int | None:
@@ -66,12 +67,16 @@ class Process:
                 umask=process_umask,
                 stdout=stdout_dest,
                 stderr=stderr_dest,
+                start_new_session=True,
             )
             self.start_time = time.monotonic()
         except OSError as e:
             self.popen = None
             print(f"[{self.name}] Failed to spawn: {e}", file=sys.stderr)
             spawn_failed(self)
+
+    # TODO: Open the configured stdout/stderr file, or DEVNULL if unset
+    # def _resolve_stream(path: str | None):
 
     def send_stop_signal(self):
         """Send the configured stop signal and transition to STOPPING."""
@@ -94,5 +99,6 @@ class Process:
         try:
             print(f"[{self.name}] Graceful stop timed out; killing process.")
             self.popen.kill()
+            print(f"[{self.name}] SIGKILL sent.")
         except ProcessLookupError:
             return
