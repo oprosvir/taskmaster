@@ -3,7 +3,8 @@ import sys
 from pathlib import Path
 from pprint import pprint
 
-from config import load_config, drop_privileges, diff_programs
+from config import diff_programs, drop_privileges, load_config
+
 from .event_loop import EventLoop
 from .manager import ProcessManager
 

@@ -1,6 +1,6 @@
+import pwd
 import shlex
 import signal
-import pwd
 from dataclasses import dataclass, field
 from pathlib import Path
 

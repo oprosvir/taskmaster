@@ -1,6 +1,6 @@
-from config import ProgramConfig, ConfigDiff
-from process.group import ProcessGroup
+from config import ConfigDiff, ProgramConfig
 from process.fsm import ProcessState
+from process.group import ProcessGroup
 
 TERMINAL_STATES = (ProcessState.STOPPED, ProcessState.FATAL)
 

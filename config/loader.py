@@ -1,6 +1,6 @@
 import tomllib
-from .models import ConfigError, GlobalConfig, ProgramConfig
 
+from .models import ConfigError, GlobalConfig, ProgramConfig
 
 KNOWN_SECTIONS = {"global", "program"}
 

@@ -1,7 +1,8 @@
 from __future__ import annotations
+
+import time
 from enum import Enum, auto
 from typing import TYPE_CHECKING
-import time
 
 if TYPE_CHECKING:
     from .process import Process

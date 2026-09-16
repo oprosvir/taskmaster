@@ -1,16 +1,16 @@
-from .models import GlobalConfig, ProgramConfig, ConfigError, ConfigNotFoundError
-from .loader import load_config
 from .diff import ConfigDiff, diff_programs
+from .loader import load_config
+from .models import ConfigError, ConfigNotFoundError, GlobalConfig, ProgramConfig
 from .privileges import PrivilegeError, drop_privileges
 
 __all__ = [
-    "GlobalConfig",
-    "ProgramConfig",
+    "ConfigDiff",
     "ConfigError",
     "ConfigNotFoundError",
-    "load_config",
-    "ConfigDiff",
-    "diff_programs",
+    "GlobalConfig",
     "PrivilegeError",
+    "ProgramConfig",
+    "diff_programs",
     "drop_privileges",
+    "load_config",
 ]

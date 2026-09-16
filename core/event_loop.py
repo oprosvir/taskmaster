@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import signal
 import sys
 import time
 from typing import TYPE_CHECKING
-from config import ConfigNotFoundError, ConfigError
+
+from config import ConfigError, ConfigNotFoundError
 
 if TYPE_CHECKING:
     from .daemon import TaskmasterDaemon

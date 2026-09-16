@@ -1,11 +1,12 @@
+import os
 import subprocess
 import sys
 import time
-import os
 from dataclasses import dataclass
 
 from config import ProgramConfig
-from .fsm import ProcessState, ALLOWED_TRANSITIONS, InvalidTransition, spawn_failed
+
+from .fsm import ALLOWED_TRANSITIONS, InvalidTransition, ProcessState, spawn_failed
 
 
 @dataclass

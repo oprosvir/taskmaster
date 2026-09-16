@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 
 from config import ProgramConfig
-from .process import Process
+
 from . import fsm
+from .process import Process
 
 
 @dataclass
