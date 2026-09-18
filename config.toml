@@ -26,7 +26,13 @@ stopsignal = "QUIT"
 
 # Forced-stop test: the process ignores SIGTERM until SIGKILL is sent.
 [program.test_ignore_term]
-cmd = '/usr/bin/python3 -c "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(300)"'
+cmd = '''
+/usr/bin/python3 -c "
+    import signal, time
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    time.sleep(300)
+"
+'''
 autostart = true
 stopsignal = "TERM"
 stoptime = 3
@@ -57,3 +63,29 @@ cmd = "/usr/bin/python3 -m http.server 8080"
 workingdir = "/home/oprosvir/my_website/build"
 starttime = 3
 stopsignal = "INT"
+
+# Stdout redirection test
+[program.ping_demo]
+cmd = "/usr/bin/ping 8.8.8.8"
+stdout = "/home/oprosvir/taskmaster/logs/ping.log"
+
+# Dual-stream logging test
+[program.heartbeat]
+cmd = '''
+/bin/sh -c '
+    i=0
+    while true; do
+        echo "stdout heartbeat $i"
+        echo "stderr heartbeat $i" >&2
+        i=$((i + 1))
+        sleep 1
+    done
+'
+'''
+stdout = "/home/oprosvir/taskmaster/logs/heartbeat.log"
+stderr = "/home/oprosvir/taskmaster/logs/heartbeat.err"
+
+# Permission denied for logs, discarded
+[program.ping_root]
+cmd = "/usr/bin/ping 8.8.8.8"
+stdout = "/root/ping.log"

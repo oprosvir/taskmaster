@@ -11,6 +11,8 @@ from .fsm import ALLOWED_TRANSITIONS, InvalidTransition, ProcessState, spawn_fai
 
 @dataclass
 class Process:
+    """Manages an individual program instance lifecycle"""
+
     name: str
     config: ProgramConfig
     state: ProcessState = ProcessState.STOPPED
@@ -23,10 +25,12 @@ class Process:
 
     @property
     def pid(self) -> int | None:
+        """Return the OS process ID if the process is active, otherwise None."""
         return self.popen.pid if self.popen else None
 
     @property
     def uptime(self) -> float | None:
+        """Return running duration in seconds if the process is currently running."""
         if self.state != ProcessState.RUNNING or self.start_time is None:
             return None
         return time.monotonic() - self.start_time
@@ -44,7 +48,21 @@ class Process:
         print(f"[{self.name}] State: {self.state.name} -> {new_state.name}")
         self.state = new_state
 
+    def _open_log_file(self, log_path: str | None):
+        """Open the configured log file in append mode, creating parent directories if needed."""
+        if not log_path:
+            return subprocess.DEVNULL
+
+        try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            return open(log_path, "a", encoding="utf-8")
+        except (PermissionError, OSError) as e:
+            print(f"[{self.name}] Error opening log file {log_path}: {e}. "
+                  "Output will be discarded.", file=sys.stderr)
+            return subprocess.DEVNULL
+
     def start(self):
+        """Spawn the process using subprocess.Popen with configured environment."""
         if self.state in (ProcessState.RUNNING, ProcessState.STARTING):
             return
 
@@ -55,9 +73,10 @@ class Process:
         env = os.environ.copy()
         env.update(self.config.env)
 
-        stdout_dest = subprocess.DEVNULL
-        stderr_dest = subprocess.DEVNULL
         process_umask = self.config.umask if self.config.umask is not None else -1
+
+        stdout_dest = self._open_log_file(self.config.stdout)
+        stderr_dest = self._open_log_file(self.config.stderr)
 
         try:
             print(f"[{self.name}] Starting: {self.config.cmd}")
@@ -76,9 +95,11 @@ class Process:
             self.popen = None
             print(f"[{self.name}] Failed to spawn: {e}", file=sys.stderr)
             spawn_failed(self)
-
-    # TODO: Open the configured stdout/stderr file, or DEVNULL if unset
-    # def _resolve_stream(path: str | None):
+        finally:
+            # Close parent process file descriptors to prevent descriptor leaks
+            for stream in (stdout_dest, stderr_dest):
+                if stream is not subprocess.DEVNULL:
+                    stream.close()
 
     def send_stop_signal(self):
         """Send the configured stop signal and transition to STOPPING."""

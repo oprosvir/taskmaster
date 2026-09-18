@@ -157,12 +157,16 @@ class ProgramConfig:
             raise ConfigError("stoptime must be a non-negative integer")
 
     def _validate_stdout(self):
-        if self.stdout is not None and not isinstance(self.stdout, str):
-            raise ConfigError("stdout must be a string or None")
+        if self.stdout is not None:
+            if not isinstance(self.stdout, str) or not self.stdout.strip():
+                raise ConfigError("stdout must be a non-empty string or None")
+            self.stdout = Path(self.stdout)
 
     def _validate_stderr(self):
-        if self.stderr is not None and not isinstance(self.stderr, str):
-            raise ConfigError("stderr must be a string or None")
+        if self.stderr is not None:
+            if not isinstance(self.stderr, str) or not self.stderr.strip():
+                raise ConfigError("stderr must be a non-empty string or None")
+            self.stderr = Path(self.stderr)
 
     def _validate_env(self):
         if not isinstance(self.env, dict):
