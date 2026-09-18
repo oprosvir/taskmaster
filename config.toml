@@ -10,6 +10,7 @@ cmd = "/usr/bin/sleep 30"
 autostart = true
 workingdir = "/tmp"
 stopsignal = "INT"
+autorestart = "always"
 
 [program.test_sleep_hup]
 cmd = "/usr/bin/sleep 300"
@@ -53,5 +54,6 @@ cmd = "nonexisting"
 # Graceful shutdown with SIGINT.
 [program.test_server]
 cmd = "/usr/bin/python3 -m http.server 8080"
+workingdir = "/home/oprosvir/my_website/build"
 starttime = 3
 stopsignal = "INT"

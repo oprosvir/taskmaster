@@ -12,7 +12,7 @@ class ProcessGroup:
     config: ProgramConfig
     processes: list[Process] = field(default_factory=list)
 
-    def create_processes(self) -> None:
+    def create_processes(self):
         """Create process instances according to the configured numprocs."""
         self.processes = []
         numprocs = self.config.numprocs
@@ -21,13 +21,13 @@ class ProcessGroup:
             proc = Process(name=proc_name, config=self.config)
             self.processes.append(proc)
 
-    def start_if_autostart(self) -> None:
+    def start_if_autostart(self):
         """Start all processes when autostart is enabled."""
         if self.config.autostart:
             for proc in self.processes:
                 proc.start()
 
-    def stop_all(self) -> None:
+    def stop_all(self):
         """Request a graceful stop for every active process in the group."""
         for proc in self.processes:
             proc.shutting_down = True
@@ -36,7 +36,7 @@ class ProcessGroup:
             else:
                 print(f"[{proc.name}] Stop skipped; current state is " f"{proc.state.name}.")
 
-    def tick(self) -> None:
+    def tick(self):
         """Advance the state of every process in the group."""
         for proc in self.processes:
             fsm.tick(proc)

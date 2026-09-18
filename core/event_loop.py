@@ -1,35 +1,37 @@
-from __future__ import annotations
-
+import selectors
 import signal
 import sys
-import time
-from typing import TYPE_CHECKING
 
 from config import ConfigError, ConfigNotFoundError
 
-if TYPE_CHECKING:
-    from .daemon import TaskmasterDaemon
-
 SLEEP_TIMEOUT = 0.1
-MAX_SHUTDOWN_WAIT = 30
 
 
 class SignalFlags:
-    def __init__(self) -> None:
+    """Container for asynchronous signal flags captured by signal handlers."""
+
+    def __init__(self):
         self.sighup: bool = False
         self.shutdown: bool = False
 
-    def reset_hup(self) -> None:
+    def reset_hup(self):
+        """Reset the SIGHUP flag back to False after handling."""
         self.sighup = False
 
 
 class EventLoop:
-    def __init__(self, daemon: TaskmasterDaemon):
-        self.daemon = daemon
+    """Core event loop responsible for I/O multiplexing and periodic ticks."""
+
+    def __init__(self, on_tick, on_reload, on_shutdown):
+        self.on_tick = on_tick
+        self.on_reload = on_reload
+        self.on_shutdown = on_shutdown
+        self.selector = selectors.DefaultSelector()
         self.flags = SignalFlags()
         self.is_running = False
 
     def _setup_signals(self):
+        """Register signal handlers for SIGHUP, SIGINT, and SIGTERM."""
 
         def _handle_sighup(signum, frame):
             self.flags.sighup = True
@@ -42,45 +44,36 @@ class EventLoop:
         signal.signal(signal.SIGTERM, _handle_shutdown)
 
     def run(self):
+        """Start the event loop, processing I/O events, signals, and process ticks."""
         self._setup_signals()
         self.is_running = True
-
         print("[event_loop] Started.")
-        self.daemon.manager.start_all()
 
         while self.is_running:
+            # 1. Wait for I/O events
+            events = self.selector.select(timeout=SLEEP_TIMEOUT)
+            for key, mask in events:
+                callback = key.data
+                callback(key.fileobj, mask)
+
+            # 2. Handle asynchronous signal flags
             if self.flags.shutdown:
-                self._handle_shutdown_flow()
+                self.on_shutdown()
 
             if self.flags.sighup:
                 self.flags.reset_hup()
-                print("\n[taskmasterd] SIGHUP received: reloading config...", file=sys.stderr)
+                print("\n[event_loop] SIGHUP received: reloading config...", file=sys.stderr)
                 try:
-                    self.daemon.reload_config()
+                    self.on_reload()
                 except (ConfigNotFoundError, ConfigError) as e:
-                    print(f"[taskmasterd] Reload failed, keeping current config. Error: {e}", file=sys.stderr)
+                    print(f"[event_loop] Reload failed, keeping current config. Error: {e}", file=sys.stderr)
 
-            self.daemon.manager.check_children()
-            time.sleep(SLEEP_TIMEOUT)
+            # 3. Process manager tick (evaluate FSM states)
+            self.on_tick()
 
         self._cleanup()
 
     def _cleanup(self):
-        # TODO: Bonus: close unix socket
-        print("[event_loop] Stopped gracefully.")
-
-    def _handle_shutdown_flow(self):
-        """Signal all processes to stop, then keep ticking until they actually exit"""
-        print("\n[event_loop] Shutdown requested via signal.")
-        self.is_running = False
-        self.daemon.shutdown()
-
-        shutdown_deadline = time.monotonic() + MAX_SHUTDOWN_WAIT
-        while not self.daemon.manager.all_stopped():
-            if time.monotonic() > shutdown_deadline:
-                print("[event_loop] Shutdown timeout exceeded, force-exiting.", file=sys.stderr)
-                break
-            self.daemon.manager.check_children()
-            time.sleep(SLEEP_TIMEOUT)
-
-        print("[event_loop] All processes stopped.")
+        """Clean up event loop resources."""
+        self.selector.close()
+        print("[event_loop] Selector closed, loop terminated.")

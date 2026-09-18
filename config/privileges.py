@@ -7,7 +7,7 @@ class PrivilegeError(RuntimeError):
     """Raised when dropping root privileges fails."""
 
 
-def drop_privileges(username: str) -> None:
+def drop_privileges(username: str):
     """Drop root privileges to the given unprivileged user.
 
     Args:
@@ -25,7 +25,7 @@ def drop_privileges(username: str) -> None:
     try:
         if username == "nobody":
             # log.warning
-            print("[taskmaster]: no 'user' specified in config file.",
+            print("[taskmasterd]: no 'user' specified in config file.",
                   "Dropping to 'nobody:nogroup' by default.", file=sys.stderr)
         os.initgroups(username, user_entry.pw_gid)
         os.setgid(user_entry.pw_gid)

@@ -12,7 +12,7 @@ class ProcessManager:
         self.pending_restarts: dict[str, ProgramConfig] = {}
         self.setup_programs(programs_cfg)
 
-    def setup_programs(self, programs_cfg: dict[str, ProgramConfig]) -> None:
+    def setup_programs(self, programs_cfg: dict[str, ProgramConfig]):
         """Create process groups from validated program configurations."""
         # {"nginx": ProcessGroup(processes=[<Process name="nginx">])}
         # {"worker": ProcessGroup(processes=[<Process name="worker_0">,
