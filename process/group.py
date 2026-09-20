@@ -34,7 +34,7 @@ class ProcessGroup:
             if proc.state in (fsm.ProcessState.RUNNING, fsm.ProcessState.STARTING):
                 proc.send_stop_signal()
             else:
-                print(f"[{proc.name}] Stop skipped; current state is " f"{proc.state.name}.")
+                proc.logger.info("Stop skipped; current state is %s.", proc.state.name)
 
     def tick(self):
         """Advance the state of every process in the group."""

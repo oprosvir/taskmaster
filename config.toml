@@ -1,6 +1,6 @@
 [global]
 logfile = "/tmp/taskmaster.log"
-loglevel = "INFO"
+loglevel = "debug"
 user = "oprosvir"
 
 # Signal handling tests:
@@ -31,8 +31,7 @@ cmd = '''
     import signal, time
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     time.sleep(300)
-"
-'''
+"'''
 autostart = true
 stopsignal = "TERM"
 stoptime = 3
@@ -63,6 +62,8 @@ cmd = "/usr/bin/python3 -m http.server 8080"
 workingdir = "/home/oprosvir/my_website/build"
 starttime = 3
 stopsignal = "INT"
+stdout = "/home/oprosvir/my_website/logs/server.log"
+stderr = "/home/oprosvir/my_website/logs/server.err"
 
 # Stdout redirection test
 [program.ping_demo]

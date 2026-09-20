@@ -1,8 +1,8 @@
+import logging
 import os
 import subprocess
-import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from config import ProgramConfig
 
@@ -22,6 +22,10 @@ class Process:
     try_count: int = 0
     exit_code: int | None = None
     shutting_down: bool = False
+    logger: logging.Logger = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self.logger = logging.getLogger(f"taskmasterd.{self.name}")
 
     @property
     def pid(self) -> int | None:
@@ -45,7 +49,7 @@ class Process:
         """Validate and apply a state transition on the given process."""
         if new_state not in ALLOWED_TRANSITIONS[self.state]:
             raise InvalidTransition(f"{self.name}: {self.state.name} -> {new_state.name}")
-        print(f"[{self.name}] State: {self.state.name} -> {new_state.name}")
+        self.logger.debug("State transition: %s -> %s", self.state.name, new_state.name)
         self.state = new_state
 
     def _open_log_file(self, log_path: str | None):
@@ -57,8 +61,7 @@ class Process:
             log_path.parent.mkdir(parents=True, exist_ok=True)
             return open(log_path, "a", encoding="utf-8")
         except (PermissionError, OSError) as e:
-            print(f"[{self.name}] Error opening log file {log_path}: {e}. "
-                  "Output will be discarded.", file=sys.stderr)
+            self.logger.error("Error opening log file %s: %s. Output will be discarded.", log_path, e)
             return subprocess.DEVNULL
 
     def start(self):
@@ -79,7 +82,7 @@ class Process:
         stderr_dest = self._open_log_file(self.config.stderr)
 
         try:
-            print(f"[{self.name}] Starting: {self.config.cmd}")
+            self.logger.info("Starting command: %s", self.config.cmd)
             self.popen = subprocess.Popen(
                 self.config.argv,
                 shell=False,
@@ -93,7 +96,7 @@ class Process:
             self.start_time = time.monotonic()
         except OSError as e:
             self.popen = None
-            print(f"[{self.name}] Failed to spawn: {e}", file=sys.stderr)
+            self.logger.error("Failed to spawn process: %s", e)
             spawn_failed(self)
         finally:
             # Close parent process file descriptors to prevent descriptor leaks
@@ -107,7 +110,7 @@ class Process:
             return
 
         try:
-            print(f"[{self.name}] Stopping with {self.config.stopsignal.name}...")
+            self.logger.info("Stopping with signal %s...", self.config.stopsignal.name)
             self.popen.send_signal(self.config.stopsignal)
             self.stop_time = time.monotonic()
             self.transition_to(ProcessState.STOPPING)
@@ -120,8 +123,8 @@ class Process:
             return
 
         try:
-            print(f"[{self.name}] Graceful stop timed out; killing process.")
+            self.logger.warning("Graceful stop timed out; force-killing process.")
             self.popen.kill()
-            print(f"[{self.name}] SIGKILL sent.")
+            self.logger.info("SIGKILL sent.")
         except ProcessLookupError:
             return

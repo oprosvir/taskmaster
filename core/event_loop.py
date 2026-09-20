@@ -1,6 +1,6 @@
+import logging
 import selectors
 import signal
-import sys
 
 from config import ConfigError, ConfigNotFoundError
 
@@ -29,6 +29,7 @@ class EventLoop:
         self.selector = selectors.DefaultSelector()
         self.flags = SignalFlags()
         self.is_running = False
+        self.logger = logging.getLogger("taskmasterd.event_loop")
 
     def _setup_signals(self):
         """Register signal handlers for SIGHUP, SIGINT, and SIGTERM."""
@@ -47,7 +48,7 @@ class EventLoop:
         """Start the event loop, processing I/O events, signals, and process ticks."""
         self._setup_signals()
         self.is_running = True
-        print("[event_loop] Started.")
+        self.logger.info("Started.")
 
         while self.is_running:
             # 1. Wait for I/O events
@@ -62,11 +63,11 @@ class EventLoop:
 
             if self.flags.sighup:
                 self.flags.reset_hup()
-                print("\n[event_loop] SIGHUP received: reloading config...", file=sys.stderr)
+                self.logger.info("SIGHUP received: reloading config...")
                 try:
                     self.on_reload()
                 except (ConfigNotFoundError, ConfigError) as e:
-                    print(f"[event_loop] Reload failed, keeping current config. Error: {e}", file=sys.stderr)
+                    self.logger.error("Reload failed, keeping current config. Error: %s", e)
 
             # 3. Process manager tick (evaluate FSM states)
             self.on_tick()
@@ -76,4 +77,4 @@ class EventLoop:
     def _cleanup(self):
         """Clean up event loop resources."""
         self.selector.close()
-        print("[event_loop] Selector closed, loop terminated.")
+        self.logger.info("Selector closed, loop terminated.")

@@ -27,7 +27,7 @@ class ServerIPC:
         self.socket_path.chmod(0o600)
 
         selector.register(self.server_socket, selectors.EVENT_READ, self._accept)
-        self.logger.info("IPC server is listening on %s", self.socket_path)
+        self.logger.info("Server is listening on %s", self.socket_path)
 
     def close(self, selector: selectors.DefaultSelector):
         if self.server_socket:
@@ -37,7 +37,7 @@ class ServerIPC:
 
         if self.socket_path.exists():
             self.socket_path.unlink()
-        self.logger.info("IPC server socket closed and cleaned up.")
+        self.logger.info("Server socket closed and cleaned up.")
 
     def _accept(self, fileobj, mask):
         """Temporary stub for accepting incoming client connections."""

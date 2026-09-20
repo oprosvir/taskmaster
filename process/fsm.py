@@ -54,14 +54,14 @@ def _tick_starting(proc: Process):
 
     if exit_code is not None:
         proc.exit_code = exit_code
-        print(f"[{proc.name}] Exited during startup with code {exit_code}.")
+        proc.logger.warning("Exited during startup with code %s.", exit_code)
         proc.transition_to(ProcessState.BACKOFF)
         _handle_backoff(proc)
         return
 
     if elapsed >= proc.config.starttime:
         proc.transition_to(ProcessState.RUNNING)
-        print(f"[{proc.name}] Reached RUNNING state.")
+        proc.logger.info("Successfully reached RUNNING state.")
 
 
 def _handle_backoff(proc: Process):
@@ -70,10 +70,14 @@ def _handle_backoff(proc: Process):
         proc.transition_to(ProcessState.STOPPED)
         return
     if proc.try_count <= proc.config.startretries:
-        print(f"[{proc.name}] Retrying startup " f"({proc.try_count}/{proc.config.startretries}).")
+        proc.logger.warning("Retrying startup (%d/%d).", proc.try_count, proc.config.startretries)
         proc.start()
     else:
-        print(f"[{proc.name}] Startup retries exhausted; entering FATAL.")
+        proc.logger.critical(
+            "Startup retries exhausted (%d/%d); entering FATAL state.",
+            proc.try_count - 1,
+            proc.config.startretries
+        )
         proc.transition_to(ProcessState.FATAL)
 
 
@@ -103,6 +107,7 @@ def _handle_exit(proc: Process):
     proc.transition_to(ProcessState.STOPPED)
     if should_restart:
         proc.try_count = 0
+        proc.logger.info("Restarting according to autorestart policy.")
         proc.start()
 
 
@@ -111,7 +116,7 @@ def _tick_stopping(proc: Process):
     exit_code = proc.poll()
     if exit_code is not None:
         proc.exit_code = exit_code
-        print(f"[{proc.name}] Stopped with exit code {exit_code}.")
+        proc.logger.info("Stopped with exit code %s.", exit_code)
         proc.transition_to(ProcessState.EXITED)
         proc.transition_to(ProcessState.STOPPED)
         return
