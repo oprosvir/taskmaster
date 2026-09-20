@@ -1,12 +1,13 @@
-# import copy
 import logging
 import sys
+from logging.handlers import SysLogHandler
 from pathlib import Path
 
 from config import ConfigError
 
 LOG_FORMAT = "[%(asctime)s] %(levelname)-8s %(name)s: %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+SYSLOG_PATH = "/dev/log"
 
 # ANSI color codes
 COLORS = {
@@ -50,6 +51,11 @@ def setup_logging(logfile: Path, loglevel: str):
     stream_handler.setFormatter(stream_formatter)
     logger.addHandler(stream_handler)
 
-    # TODO: syslog_handler
+    # Check logs: journalctl -f
+    syslog_handler = SysLogHandler(address=SYSLOG_PATH)
+    syslog_handler.setLevel(logging.WARNING)
+    syslog_formatter = logging.Formatter("%(name)s: %(levelname)s - %(message)s")
+    syslog_handler.setFormatter(syslog_formatter)
+    logger.addHandler(syslog_handler)
 
     return logger
