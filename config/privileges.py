@@ -24,7 +24,6 @@ def drop_privileges(username: str):
 
     try:
         if username == "nobody":
-            # log.warning
             print("[taskmasterd]: no 'user' specified in config file.",
                   "Dropping to 'nobody:nogroup' by default.", file=sys.stderr)
         os.initgroups(username, user_entry.pw_gid)

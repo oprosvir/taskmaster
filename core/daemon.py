@@ -1,4 +1,6 @@
+import grp
 import os
+import pwd
 import sys
 import time
 from pathlib import Path
@@ -9,6 +11,7 @@ from ipc.server import ServerIPC
 
 from .event_loop import SLEEP_TIMEOUT, EventLoop
 from .manager import ProcessManager
+from .logger import setup_logging
 
 MAX_SHUTDOWN_WAIT = 30
 
@@ -20,6 +23,13 @@ class TaskmasterDaemon:
         self.config_path = config_path
         self.global_cfg, self.programs_cfg = load_config(self.config_path)
 
+        self.drop_privileges_if_root()
+
+        self.logger = setup_logging(
+            logfile=self.global_cfg.logfile,
+            loglevel=self.global_cfg.loglevel,
+        )
+
         self.manager = ProcessManager(self.programs_cfg)
 
         self.ipc_server = ServerIPC(self.global_cfg.socket_path)
@@ -29,8 +39,6 @@ class TaskmasterDaemon:
             on_reload=self.reload_config,
             on_shutdown=self.shutdown
         )
-
-        self.drop_privileges_if_root()
 
     def reload_config(self):
         """Reload configuration file, calculate diff, and apply state updates."""
@@ -55,7 +63,7 @@ class TaskmasterDaemon:
         """Drop root privileges to a safer configured user if running as root."""
         if os.geteuid() == 0:
             drop_privileges(self.global_cfg.user)
-            print(f"[taskmasterd] Dropped privileges to user {self.global_cfg.user!r}")
+            print(f"[taskmasterd] Dropped privileges to user {self.global_cfg.user!r}", file=sys.stderr)
 
     def shutdown(self):
         """Signal all processes to stop, then keep ticking until they actually exit"""
@@ -76,6 +84,12 @@ class TaskmasterDaemon:
 
     def run(self):
         """High-level daemon startup orchestration."""
+        username = pwd.getpwuid(os.geteuid()).pw_name
+        groupname = grp.getgrgid(os.getegid()).gr_name
+        self.logger.info(
+            "Daemon initialized as user=%s (uid=%s) group=%s (gid=%s)",
+            username, os.geteuid(), groupname, os.getegid()
+        )
         print("[taskmasterd] Initial configuration loaded successfully:")
         pprint(self.global_cfg)
         pprint(self.programs_cfg)
