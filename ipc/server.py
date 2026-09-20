@@ -1,3 +1,4 @@
+import logging
 import selectors
 import socket
 from pathlib import Path
@@ -9,6 +10,7 @@ class ServerIPC:
     def __init__(self, socket_path: Path):
         self.socket_path = socket_path
         self.server_socket = None
+        self.logger = logging.getLogger("taskmasterd.ipc")
 
     def start(self, selector: selectors.DefaultSelector):
         """Start listening on the Unix domain socket, registering it with the selector."""
@@ -25,7 +27,7 @@ class ServerIPC:
         self.socket_path.chmod(0o600)
 
         selector.register(self.server_socket, selectors.EVENT_READ, self._accept)
-        print(f"[ipc] Server listening on {self.socket_path}")
+        self.logger.info("IPC server is listening on %s", self.socket_path)
 
     def close(self, selector: selectors.DefaultSelector):
         if self.server_socket:
@@ -35,7 +37,7 @@ class ServerIPC:
 
         if self.socket_path.exists():
             self.socket_path.unlink()
-        print("[ipc] Server socket closed and cleaned up.")
+        self.logger.info("IPC server socket closed and cleaned up.")
 
     def _accept(self, fileobj, mask):
         """Temporary stub for accepting incoming client connections."""

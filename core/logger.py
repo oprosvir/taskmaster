@@ -1,11 +1,31 @@
 # import copy
 import logging
+import sys
 from pathlib import Path
 
 from config import ConfigError
 
 LOG_FORMAT = "[%(asctime)s] %(levelname)-8s %(name)s: %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+# ANSI color codes
+COLORS = {
+    logging.DEBUG: "\033[36m",      # cyan
+    logging.INFO: "\033[32m",       # green
+    logging.WARNING: "\033[33m",    # yellow
+    logging.ERROR: "\033[31m",      # red
+    logging.CRITICAL: "\033[35m",   # magenta
+}
+RESET = "\033[0m"
+
+
+class ColoredFormatter(logging.Formatter):
+    """Formatter that adds ANSI color codes based on log level."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        color = COLORS.get(record.levelno, "")
+        record.levelname = f"{color}{record.levelname:<8}{RESET}"
+        return super().format(record)
 
 
 def setup_logging(logfile: Path, loglevel: str):
@@ -24,5 +44,12 @@ def setup_logging(logfile: Path, loglevel: str):
     formatter = logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_formatter = ColoredFormatter(LOG_FORMAT, datefmt=DATE_FORMAT)
+    stream_handler.setFormatter(stream_formatter)
+    logger.addHandler(stream_handler)
+
+    # TODO: syslog_handler
 
     return logger
