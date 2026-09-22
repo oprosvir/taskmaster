@@ -11,13 +11,13 @@ if TYPE_CHECKING:
 class ProcessState(Enum):
     """FSM states for a managed process."""
 
-    STOPPED = auto()  # Stopped by the user or not started yet
-    STARTING = auto()  # Popen was called; starttime countdown is in progress
-    RUNNING = auto()  # Stayed alive for at least starttime seconds
-    BACKOFF = auto()  # Failed before starttime; waiting for a retry
-    STOPPING = auto()  # Stop signal sent; waiting up to stoptime for exit
-    EXITED = auto()  # Process exited after reaching RUNNING
-    FATAL = auto()  # startretries exceeded; no further retries are allowed
+    STOPPED = auto()    # Stopped by the user or not started yet
+    STARTING = auto()   # Popen was called; starttime countdown is in progress
+    RUNNING = auto()    # Stayed alive for at least starttime seconds
+    BACKOFF = auto()    # Failed before starttime; waiting for a retry
+    STOPPING = auto()   # Stop signal sent; waiting up to stoptime for exit
+    EXITED = auto()     # Process exited after reaching RUNNING
+    FATAL = auto()      # startretries exceeded; no further retries are allowed
 
 
 class InvalidTransition(RuntimeError):
@@ -31,7 +31,9 @@ ALLOWED_TRANSITIONS: dict[ProcessState, set[ProcessState]] = {
     ProcessState.STOPPING: {ProcessState.EXITED},
     ProcessState.EXITED: {ProcessState.STARTING, ProcessState.STOPPED},
     ProcessState.BACKOFF: {ProcessState.STARTING, ProcessState.FATAL, ProcessState.STOPPED},
-    ProcessState.FATAL: set(),
+    # FATAL is terminal for automatic supervision.  An explicit control-shell
+    # start is allowed to reset it to STOPPED before a fresh attempt.
+    ProcessState.FATAL: {ProcessState.STOPPED},
 }
 
 

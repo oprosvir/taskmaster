@@ -27,6 +27,7 @@ class Process:
     def __post_init__(self):
         self.logger = logging.getLogger(f"taskmasterd.{self.name}")
 
+    # computed properties
     @property
     def pid(self) -> int | None:
         """Return the OS process ID if the process is active, otherwise None."""
@@ -64,9 +65,23 @@ class Process:
             self.logger.error("Error opening log file %s: %s. Output will be discarded.", log_path, e)
             return subprocess.DEVNULL
 
-    def start(self):
-        """Spawn the process using subprocess.Popen with configured environment."""
+    def start(self, *, manual: bool = False):
+        """Spawn the process, optionally resetting terminal manual-stop state.
+
+        Automatic retries start from BACKOFF.  A manual start is intentionally
+        narrower: it can only start a stopped process and may recover FATAL.
+        """
         if self.state in (ProcessState.RUNNING, ProcessState.STARTING):
+            return
+
+        if manual:
+            if self.state == ProcessState.FATAL:
+                self.transition_to(ProcessState.STOPPED)
+            if self.state != ProcessState.STOPPED:
+                return
+            self.shutting_down = False
+            self.try_count = 0
+        elif self.state == ProcessState.FATAL:
             return
 
         self.exit_code = None
