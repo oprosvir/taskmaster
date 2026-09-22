@@ -3,7 +3,7 @@ import sys
 from logging.handlers import SysLogHandler
 from pathlib import Path
 
-from config import ConfigError
+from src.config import ConfigError
 
 LOG_FORMAT = "[%(asctime)s] %(levelname)-8s %(name)s: %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"

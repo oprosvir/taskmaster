@@ -1,7 +1,7 @@
-from config import ConfigDiff, ProgramConfig
-from process.fsm import ProcessState
-from process.group import ProcessGroup
-from process.process import Process
+from src.config import ConfigDiff, ProgramConfig
+from src.process.fsm import ProcessState
+from src.process.group import ProcessGroup
+from src.process.process import Process
 
 TERMINAL_STATES = (ProcessState.STOPPED, ProcessState.FATAL)
 ALL_TARGET = "all"

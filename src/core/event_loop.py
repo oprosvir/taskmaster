@@ -2,7 +2,7 @@ import logging
 import selectors
 import signal
 
-from config import ConfigError, ConfigNotFoundError
+from src.config import ConfigError, ConfigNotFoundError
 
 SLEEP_TIMEOUT = 0.1
 

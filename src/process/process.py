@@ -4,7 +4,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 
-from config import ProgramConfig
+from src.config import ProgramConfig
 
 from .fsm import ALLOWED_TRANSITIONS, InvalidTransition, ProcessState, spawn_failed
 

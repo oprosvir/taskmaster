@@ -3,8 +3,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from config import ConfigError, ConfigNotFoundError, PrivilegeError
-from core.daemon import TaskmasterDaemon
+from src.config import ConfigError, ConfigNotFoundError, PrivilegeError
+from src.core.daemon import TaskmasterDaemon
 
 EXIT_OK = 0
 EXIT_ERROR = 1
