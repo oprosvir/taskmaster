@@ -1,12 +1,13 @@
 """Linux unit tests for control-shell operations on ProcessManager."""
+# PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 import unittest
 from unittest.mock import Mock, patch
 
-from config import ProgramConfig
-from core.manager import ProcessManager, ProgramNotFoundError
-from process.fsm import ProcessState
-from process.group import ProcessGroup
+from src.config import ProgramConfig
+from src.core.manager import ProcessManager, ProgramNotFoundError
+from src.process.fsm import ProcessState
+from src.process.group import ProcessGroup
 
 
 def program(name: str = "worker", numprocs: int = 1) -> ProgramConfig:

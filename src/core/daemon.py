@@ -6,8 +6,8 @@ import time
 from pathlib import Path
 from pprint import pformat
 
-from config import diff_programs, drop_privileges, load_config
-from ipc.server import ServerIPC
+from src.config import diff_programs, drop_privileges, load_config
+from src.ipc.server import ServerIPC
 
 from .event_loop import SLEEP_TIMEOUT, EventLoop
 from .manager import ProcessManager

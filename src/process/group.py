@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from config import ProgramConfig
+from src.config import ProgramConfig
 
 from . import fsm
 from .process import Process
