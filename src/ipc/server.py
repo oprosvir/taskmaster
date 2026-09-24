@@ -2,13 +2,21 @@ import logging
 import selectors
 import socket
 from pathlib import Path
+from typing import Callable
+
+COMMANDS = {"status", "start", "stop", "restart", "reload", "shutdown"}
+
+
+class CommandFailedError(RuntimeError):
+    """A valid command could not be completed by the daemon."""
 
 
 class ServerIPC:
     """Manages the Unix Domain Socket server for local IPC between daemon and CLI clients."""
 
-    def __init__(self, socket_path: Path):
+    def __init__(self, socket_path: Path, dispatcher: Callable[[dict], object]):
         self.socket_path = socket_path
+        self.dispatcher = dispatcher
         self.server_socket = None
         self.logger = logging.getLogger("taskmasterd.ipc")
 
