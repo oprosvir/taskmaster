@@ -6,8 +6,8 @@ import time
 from pathlib import Path
 from pprint import pformat
 
-from src.config import diff_programs, drop_privileges, load_config
-from src.ipc.server import ServerIPC
+from src.config import diff_programs, drop_privileges, load_config, ConfigError
+from src.ipc.server import CommandFailedError, ServerIPC
 
 from .event_loop import SLEEP_TIMEOUT, EventLoop
 from .manager import ProcessManager
@@ -32,13 +32,42 @@ class TaskmasterDaemon:
 
         self.manager = ProcessManager(self.programs_cfg)
 
-        self.ipc_server = ServerIPC(self.global_cfg.socket_path)
+        self.ipc_server = ServerIPC(self.global_cfg.socket_path, self.dispatch_ipc)
 
         self.event_loop = EventLoop(
-            on_tick=self.manager.check_children,
-            on_reload=self.reload_config,
-            on_shutdown=self.shutdown
+            on_tick=self.monitor_processes,
+            on_reload=self.reload_config
         )
+
+    def dispatch_ipc(self, request: dict):
+        """Execute one normalized IPC command and return its response data."""
+        command = request["command"]
+        target = request.get("target")
+
+        if command == "status":
+            return {"programs": self.manager.status(target)}
+        if command == "start":
+            return {"accepted": self.manager.start(target)}
+        if command == "stop":
+            return {"accepted": self.manager.stop(target)}
+        if command == "restart":
+            return {"accepted": self.manager.restart(target)}
+        if command == "reload":
+            try:
+                self.reload_config()
+            except ConfigError as e:
+                self.logger.error("IPC configuration reload failed, keeping current config. Error: %s", e)
+                raise CommandFailedError(f"configuration reload failed: {e}") from e
+            return {"reloaded": True}
+        if command == "shutdown":
+            self.event_loop.shutdown_requested = True
+            return {"accepted": True}
+        raise ValueError(f"unsupported command {command!r}")
+
+    def monitor_processes(self):
+        self.manager.check_children()
+        if self.event_loop.shutdown_requested:  # TODO: check for pending ipc writes
+            self.shutdown()
 
     def reload_config(self):
         """Reload configuration file, calculate diff, and apply state updates."""
