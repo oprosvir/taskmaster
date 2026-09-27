@@ -47,7 +47,7 @@ class ProcessManagerTargetTests(unittest.TestCase):
     def test_unknown_or_invalid_target_raises(self):
         with self.assertRaises(ProgramNotFoundError):
             self.manager._resolve_target("missing")
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ProgramNotFoundError):
             self.manager._resolve_target("")
 
     def test_status_for_instance_contains_only_that_instance(self):
@@ -83,18 +83,18 @@ class ProcessManagerCommandTests(unittest.TestCase):
         self.group.restart = Mock()
 
     def test_group_command_passes_none_to_process_group(self):
-        self.assertEqual(self.manager.start("worker"), ["worker"])
-        self.assertEqual(self.manager.stop("worker"), ["worker"])
-        self.assertEqual(self.manager.restart("worker"), ["worker"])
+        self.assertEqual(self.manager.start("worker"), ["worker_0", "worker_1"])
+        self.assertEqual(self.manager.stop("worker"), ["worker_0", "worker_1"])
+        self.assertEqual(self.manager.restart("worker"), ["worker_0", "worker_1"])
 
         self.group.start.assert_called_once_with(None)
         self.group.stop.assert_called_once_with(None)
         self.group.restart.assert_called_once_with(None)
 
     def test_process_command_passes_only_the_selected_instance(self):
-        self.assertEqual(self.manager.start("worker_1"), ["worker"])
-        self.assertEqual(self.manager.stop("worker_1"), ["worker"])
-        self.assertEqual(self.manager.restart("worker_1"), ["worker"])
+        self.assertEqual(self.manager.start("worker_1"), ["worker_1"])
+        self.assertEqual(self.manager.stop("worker_1"), ["worker_1"])
+        self.assertEqual(self.manager.restart("worker_1"), ["worker_1"])
 
         self.group.start.assert_called_once_with([self.worker_1])
         self.group.stop.assert_called_once_with([self.worker_1])

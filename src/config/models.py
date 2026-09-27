@@ -21,13 +21,11 @@ class GlobalConfig:
     logfile: str = "/tmp/taskmaster.log"
     loglevel: str = "INFO"
     user: str = "nobody"
-    socket_path: str = "/tmp/taskmaster.sock"
 
     def __post_init__(self):
         self._validate_loglevel()
         self._validate_logfile()
         self._validate_user()
-        self._validate_socket_path()
 
     def _validate_loglevel(self):
         if not isinstance(self.loglevel, str):
@@ -54,11 +52,6 @@ class GlobalConfig:
             raise ConfigError(f"unknown user: {self.user!r}")
         if user_info.pw_uid == 0:
             raise ConfigError("user must not be root")
-
-    def _validate_socket_path(self):
-        if not isinstance(self.socket_path, str) or not self.socket_path.strip():
-            raise ConfigError("socket_path must be a non-empty string")
-        self.socket_path = Path(self.socket_path)
 
 
 @dataclass

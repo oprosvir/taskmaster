@@ -7,7 +7,7 @@ TERMINAL_STATES = (ProcessState.STOPPED, ProcessState.FATAL)
 ALL_TARGET = "all"
 
 
-class ProgramNotFoundError(KeyError):
+class ProgramNotFoundError(Exception):
     """Raised when a command references a program name that doesn't exist."""
 
 
@@ -67,24 +67,15 @@ class ProcessManager:
 
     def start(self, target: str) -> list[str]:
         """Start processes for a specific target group or instance."""
-        resolved = self._resolve_target(target)
-        for group, procs in resolved:
-            group.start(procs)
-        return [group.name for group, _ in resolved]
+        return self._execute_action(target, "start")
 
     def stop(self, target: str) -> list[str]:
         """Stop processes for a specific target group or instance."""
-        resolved = self._resolve_target(target)
-        for group, procs in resolved:
-            group.stop(procs)
-        return [group.name for group, _ in resolved]
+        return self._execute_action(target, "stop")
 
     def restart(self, target: str) -> list[str]:
         """Restart processes for a specific target group or instance."""
-        resolved = self._resolve_target(target)
-        for group, procs in resolved:
-            group.restart(procs)
-        return [group.name for group, _ in resolved]
+        return self._execute_action(target, "restart")
 
     # =========================================================================
     # 3. DAEMON CORE LOOP (TICK & STATE MACHINE)
@@ -141,6 +132,18 @@ class ProcessManager:
     # 5. HELPER METHODS
     # =========================================================================
 
+    def _execute_action(self, target: str, action_name: str) -> list[str]:
+        """Helper to resolve target, execute a group action, and return affected process names."""
+        resolved = self._resolve_target(target)
+        for group, procs in resolved:
+            action = getattr(group, action_name)
+            action(procs)
+        return [
+            proc.name
+            for group, procs in resolved
+            for proc in (procs if procs is not None else group.processes)
+        ]
+
     def _resolve_target(self, target: str) -> list[tuple[ProcessGroup, list[Process] | None]]:
         """Resolve a protocol target to (group, processes) pairs.
 
@@ -148,9 +151,6 @@ class ProcessManager:
         - a bare group name    -> that group, whole group (None)
         - a specific instance  -> that group, just that one process
         """
-        if not isinstance(target, str) or not target:
-            raise ValueError("target must be a non-empty program name or 'all'")
-
         if target == ALL_TARGET:
             return [(group, None) for group in self.groups.values()]
 

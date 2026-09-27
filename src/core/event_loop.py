@@ -44,8 +44,8 @@ class EventLoop:
             # 1. Wait for I/O events
             events = self.selector.select(timeout=SLEEP_TIMEOUT)
             for key, mask in events:
-                callback = key.data
-                callback(key.fileobj, mask)
+                callback = key.data  # callback function
+                callback(key.fileobj, mask)  # _accept or _read_client
 
             # 2. Handle SIGHUP signal
             if self.reload_requested:

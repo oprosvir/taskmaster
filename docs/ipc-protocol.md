@@ -22,17 +22,15 @@ socket is local-only: the daemon creates it with mode `0600`.
 Every request has this shape:
 
 ```json
-{"id": "b926ae9c", "command": "status", "target": "all"}
+{"command": "status", "target": "all"}
 ```
 
 | Field | Required | Rules |
 | --- | --- | --- |
-| `id` | yes | Non-empty string of at most 64 characters. It is opaque and is echoed unchanged in the response. |
 | `command` | yes | One of the commands below, lowercase ASCII. |
-| `target` | depends | Program-group name, process-instance name, or the literal `"all"`. |
+| `target` | depends | Program-group name, process-instance name, or the literal `"all"`.
 
-Unknown fields are rejected.  This prevents a newer client from silently
-assuming semantics an older daemon does not implement.
+Unknown fields and duplicate JSON object keys are rejected.
 
 ## Commands
 
@@ -44,7 +42,6 @@ assuming semantics an older daemon does not implement.
 | `restart` | required | Request stop, then start each selected process on the first daemon tick after it reaches a terminal state. It does not start a replacement while the old process is still stopping. |
 | `reload` | forbidden | Reload the daemon configuration using the same behavior as `SIGHUP`. |
 | `shutdown` | forbidden | Request orderly daemon shutdown. The daemon stops managed programs and removes its socket. |
-| `help` | forbidden | Return supported commands and their short descriptions. |
 
 `target: "all"` is permitted for `start`, `stop`, and `restart`. A group
 target affects all its instances. A process target, such as `worker_0`,
@@ -55,13 +52,13 @@ name in another group, the group name takes precedence.
 ## Successful response
 
 ```json
-{"id": "b926ae9c", "ok": true, "data": {"programs": []}}
+{"ok": true, "data": {"accepted": ["worker_0", "worker_1"]}}
 ```
 
-All successful responses contain `id`, `ok: true`, and `data`.
+All successful responses contain `ok: true` and `data`.
 For an action command, `data` contains at least `{"accepted": ["name"]}`;
-the names are the affected program-group names, including when a single
-process instance was targeted.
+the names are the affected process instance names (e.g., `worker_0`),
+whether a whole program group or a single process instance was targeted.
 For `status`, it contains this stable representation:
 
 ```json
@@ -91,13 +88,11 @@ configuration order; processes appear in instance order.
 
 ```json
 {
-  "id": "b926ae9c",
   "ok": false,
   "error": {"code": "UNKNOWN_TARGET", "message": "program 'api' is not configured"}
 }
 ```
 
-The response uses the supplied `id` if it was valid; otherwise it is `null`.
 The client must treat `message` as display text only and branch on `code`.
 
 | Code | Meaning |
@@ -129,6 +124,7 @@ help
 quit
 ```
 
+`help` is rendered locally by `taskmasterctl` and is not sent over IPC.
 `quit` only exits the interactive client; `shutdown` stops the daemon.
 Arguments are parsed with `shlex.split`, and the client sends the resulting
 structured request.  The daemon never executes user-supplied command text.

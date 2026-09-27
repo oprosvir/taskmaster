@@ -14,6 +14,7 @@ from .manager import ProcessManager
 from .logger import setup_logging
 
 MAX_SHUTDOWN_WAIT = 30
+SOCKET_PATH = Path("/tmp/taskmaster.sock")
 
 
 class TaskmasterDaemon:
@@ -32,7 +33,7 @@ class TaskmasterDaemon:
 
         self.manager = ProcessManager(self.programs_cfg)
 
-        self.ipc_server = ServerIPC(self.global_cfg.socket_path, self.dispatch_ipc)
+        self.ipc_server = ServerIPC(SOCKET_PATH, self.dispatch_ipc)
 
         self.event_loop = EventLoop(
             on_tick=self.monitor_processes,
@@ -66,7 +67,7 @@ class TaskmasterDaemon:
 
     def monitor_processes(self):
         self.manager.check_children()
-        if self.event_loop.shutdown_requested:  # TODO: check for pending ipc writes
+        if self.event_loop.shutdown_requested and not self.ipc_server.has_pending_writes:
             self.shutdown()
 
     def reload_config(self):
@@ -99,7 +100,7 @@ class TaskmasterDaemon:
         """Signal all processes to stop, then keep ticking until they actually exit"""
         self.logger.info("Shutting down: stopping all processes...")
         self.event_loop.is_running = False
-        self.ipc_server.close(self.event_loop.selector)
+        self.ipc_server.close()
         self.manager.stop_all()
 
         shutdown_deadline = time.monotonic() + MAX_SHUTDOWN_WAIT

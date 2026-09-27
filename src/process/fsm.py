@@ -94,6 +94,7 @@ def _tick_running(proc: Process):
     exit_code = proc.poll()
     if exit_code is not None:
         proc.exit_code = exit_code
+        proc.logger.info("Process exited with code %s.", exit_code)
         proc.transition_to(ProcessState.EXITED)
         _handle_exit(proc)
 
