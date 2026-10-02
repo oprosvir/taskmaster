@@ -2,13 +2,13 @@
 
 import unittest
 
-from src.ipc.parser import COMMANDS, Command, ParseError, parse_line
+from src.ipc.parser import Command, ParseError, parse_line
 
 
 class ParseLineTests(unittest.TestCase):
     def test_blank_line_returns_none(self):
         self.assertIsNone(parse_line(""))
-        self.assertIsNone(parse_line("   "))
+        self.assertIsNone(parse_line("    "))
         self.assertIsNone(parse_line("\t  \n"))
 
     def test_command_name_is_case_insensitive(self):
@@ -51,18 +51,6 @@ class ParseLineTests(unittest.TestCase):
     def test_empty_string_argument_is_rejected(self):
         with self.assertRaises(ParseError):
             parse_line('stop ""')
-
-    def test_local_flag_matches_command_table(self):
-        local_commands = {"help", "quit"}
-        for name, spec in COMMANDS.items():
-            with self.subTest(command=name):
-                self.assertEqual(spec.local, name in local_commands)
-
-    def test_command_local_property_reflects_spec(self):
-        self.assertTrue(Command("help").local)
-        self.assertTrue(Command("quit").local)
-        self.assertFalse(Command("status").local)
-        self.assertFalse(Command("reload").local)
 
 
 if __name__ == "__main__":

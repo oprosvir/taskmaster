@@ -1,6 +1,6 @@
 [global]
-logfile = "/tmp/taskmaster.log"
-loglevel = "debug"
+logfile = "./logs/taskmaster.log"
+loglevel = "info"
 user = "oprosvir"
 
 # Signal handling tests:

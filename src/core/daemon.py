@@ -57,7 +57,6 @@ class TaskmasterDaemon:
             try:
                 self.reload_config()
             except ConfigError as e:
-                self.logger.error("IPC configuration reload failed, keeping current config. Error: %s", e)
                 raise CommandFailedError(f"configuration reload failed: {e}") from e
             return {"reloaded": True}
         if command == "shutdown":

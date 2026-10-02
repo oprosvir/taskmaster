@@ -185,16 +185,20 @@ class ServerIPC:
             self._queue_response(client, self._error(error.code, str(error)))
             return
 
+        self.logger.info("Executing command: %s", command)
+
         # command execution and error mapping
         try:
             data = self.dispatcher(command)
             response = {"ok": True, "data": data}
-            self.logger.info("Executing command: %s", command)
         except CommandFailedError as error:
+            self.logger.warning("Command failed [%s]: %s", command.get("command"), error)
             response = self._error("COMMAND_FAILED", str(error))
         except ProgramNotFoundError as error:
+            self.logger.warning("Command target not found [%s]: %s", command.get("command"), error)
             response = self._error("UNKNOWN_TARGET", str(error))
         except ValueError as error:
+            self.logger.warning("Invalid argument [%s]: %s", command.get("command"), error)
             response = self._error("INVALID_ARGUMENT", str(error))
         except Exception:
             self.logger.error("IPC command failed: %s", command.get("command"))

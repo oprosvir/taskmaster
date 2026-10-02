@@ -14,7 +14,6 @@ class Spec:
     max_args: int
     usage: str
     description: str
-    local: bool = False
 
 
 COMMANDS = {
@@ -24,8 +23,8 @@ COMMANDS = {
     "restart": Spec(1, 1, "restart GROUP|PROCESS|all", "restart processes"),
     "reload": Spec(0, 0, "reload", "reload daemon configuration"),
     "shutdown": Spec(0, 0, "shutdown", "stop the daemon"),
-    "help": Spec(0, 0, "help", "show this help", local=True),
-    "quit": Spec(0, 0, "quit", "leave the shell (daemon keeps running)", local=True),
+    "help": Spec(0, 0, "help", "show this help"),
+    "quit": Spec(0, 0, "quit", "leave the shell (daemon keeps running)"),
 }
 
 
@@ -35,13 +34,6 @@ class Command:
 
     name: str
     target: str | None = None
-
-    @property
-    def local(self) -> bool:
-        """Return True if the command is executed locally by the client,
-        or False if it must be sent to the daemon.
-        """
-        return COMMANDS[self.name].local
 
 
 def parse_line(line: str) -> Command | None:
