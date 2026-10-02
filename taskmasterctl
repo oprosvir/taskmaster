@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+import sys
+
+from src.ipc.client import ClientIPC
+from src.ipc.shell import run
+
+
+def main() -> int:
+    client = ClientIPC()
+    return run(client)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -3,7 +3,7 @@ import socket
 from pathlib import Path
 
 from .server import MAX_MESSAGE_SIZE
-from core.daemon import SOCKET_PATH
+from src.core.daemon import SOCKET_PATH
 
 DEFAULT_TIMEOUT = 5.0
 
