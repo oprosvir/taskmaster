@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from src.config import ProgramConfig
 
-from . import fsm
+from . import state
 from .process import Process
 
 
@@ -62,7 +62,7 @@ class ProcessGroup:
         """Mark processes as intentionally stopping and signal active ones."""
         for proc in targets:
             proc.shutting_down = True
-            if proc.state in (fsm.ProcessState.RUNNING, fsm.ProcessState.STARTING):
+            if proc.state in (state.ProcessState.RUNNING, state.ProcessState.STARTING):
                 proc.send_stop_signal()
             else:
                 proc.logger.info("Stop skipped; current state is %s.", proc.state.name)
@@ -70,14 +70,14 @@ class ProcessGroup:
     def tick(self):
         """Advance the state of every process in the group."""
         for proc in self.processes:
-            fsm.tick(proc)
+            state.tick(proc)
 
         if not self.pending_restarts:
             return
         ready = [
             proc for proc in self.processes
             if proc.name in self.pending_restarts
-            and proc.state in (fsm.ProcessState.STOPPED, fsm.ProcessState.FATAL)
+            and proc.state in (state.ProcessState.STOPPED, state.ProcessState.FATAL)
         ]
         if ready:
             self.start(ready)

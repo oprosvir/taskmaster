@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 from src.config import ProgramConfig
 from src.core.manager import ProcessManager, ProgramNotFoundError
-from src.process.fsm import ProcessState
+from src.process.state import ProcessState
 from src.process.group import ProcessGroup
 
 

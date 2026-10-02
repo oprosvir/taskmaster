@@ -1,5 +1,5 @@
 from src.config import ConfigDiff, ProgramConfig
-from src.process.fsm import ProcessState
+from src.process.state import ProcessState
 from src.process.group import ProcessGroup
 from src.process.process import Process
 

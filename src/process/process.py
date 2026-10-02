@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from src.config import ProgramConfig
 
-from .fsm import ALLOWED_TRANSITIONS, InvalidTransition, ProcessState, spawn_failed
+from .state import ALLOWED_TRANSITIONS, InvalidTransition, ProcessState, spawn_failed
 
 
 @dataclass

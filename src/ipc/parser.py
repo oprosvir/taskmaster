@@ -5,9 +5,11 @@ from dataclasses import dataclass
 class ParseError(ValueError):
     """Input isn't a valid command; the message is shown to the user as-is."""
 
+
 @dataclass(frozen=True)
 class Spec:
     """Defines validation rules and metadata for a CLI command."""
+
     min_args: int
     max_args: int
     usage: str
@@ -30,12 +32,13 @@ COMMANDS = {
 @dataclass(frozen=True)
 class Command:
     """Data Transfer Object (DTO) representing a successfully parsed user command."""
+
     name: str
     target: str | None = None
 
     @property
     def local(self) -> bool:
-        """Return True if the command is executed locally by the client, 
+        """Return True if the command is executed locally by the client,
         or False if it must be sent to the daemon.
         """
         return COMMANDS[self.name].local
