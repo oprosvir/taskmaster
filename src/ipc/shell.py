@@ -1,9 +1,33 @@
+import atexit
+import os
+import readline
 import sys
 
 from .client import ClientIPC, IPCClientError
 from .parser import parse_line, COMMANDS, ParseError
 
 PROMPT = "taskmaster> "
+HISTORY_FILE = os.path.expanduser("~/.taskmaster_history")
+
+
+def _setup_readline():
+    """Configure readline for history, line editing and tab-completion."""
+    try:
+        readline.read_history_file(HISTORY_FILE)
+    except FileNotFoundError:
+        pass
+
+    atexit.register(readline.write_history_file, HISTORY_FILE)
+    readline.set_history_length(1000)
+
+    def complete(text: str, state: int) -> str | None:
+        """Readline completer function using COMMANDS keys."""
+        matches = [cmd for cmd in COMMANDS.keys() if cmd.startswith(text)]
+        return matches[state] if state < len(matches) else None
+
+    readline.set_completer(complete)
+    readline.parse_and_bind("tab: complete")
+    readline.parse_and_bind("set show-all-if-ambiguous on")
 
 
 def print_help():
@@ -39,6 +63,7 @@ def _print_status(programs: list[dict]):
 
 def run(client: ClientIPC | None = None) -> int:
     """Run the interactive REPL until the user quits. Returns the exit code."""
+    _setup_readline()
     client = client or ClientIPC()
 
     print("Taskmaster shell. Type 'help' for available commands.")
