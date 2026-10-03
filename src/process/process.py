@@ -31,7 +31,9 @@ class Process:
     @property
     def pid(self) -> int | None:
         """Return the OS process ID if the process is active, otherwise None."""
-        return self.popen.pid if self.popen else None
+        if self.state != ProcessState.RUNNING or self.popen is None:
+            return None
+        return self.popen.pid
 
     @property
     def uptime(self) -> float | None:
