@@ -58,6 +58,7 @@ class ProcessManager:
                         "pid": proc.pid,
                         "uptime_seconds": proc.uptime,
                         "exit_code": proc.exit_code,
+                        "stop_reason": proc.stop_reason,
                     }
                     for proc in (procs if procs is not None else group.processes)
                 ],

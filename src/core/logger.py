@@ -1,6 +1,6 @@
 import logging
 import sys
-from logging.handlers import SysLogHandler
+from logging.handlers import SysLogHandler, RotatingFileHandler
 from pathlib import Path
 
 from src.config import ConfigError
@@ -38,7 +38,9 @@ def setup_logging(logfile: Path, loglevel: str):
 
     try:
         logfile.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(logfile, encoding="utf-8")
+        file_handler = RotatingFileHandler(
+            logfile, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
     except OSError as e:
         raise ConfigError(f"Cannot create log directory for {logfile}: {e}")
 

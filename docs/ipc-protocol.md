@@ -72,7 +72,8 @@ For `status`, it contains this stable representation:
           "state": "RUNNING",
           "pid": 1234,
           "uptime_seconds": 42.3,
-          "exit_code": null
+          "exit_code": null,
+          "stop_reason": null
         }
       ]
     }
@@ -80,9 +81,17 @@ For `status`, it contains this stable representation:
 }
 ```
 
-`pid`, `uptime_seconds`, and `exit_code` are `null` when not applicable.
-`state` is the uppercase `ProcessState` name.  Programs appear in their
-configuration order; processes appear in instance order.
+`pid`, `uptime_seconds`, `exit_code`, and `stop_reason` are `null` when not applicable.
+
+`stop_reason` is set in the `STOPPED` and `FATAL` states:
+`"exited"` when the process ended on its own and autorestart decided not to
+restart it, `"by request"` when it stopped because of an explicit
+`stop`/`restart`/`shutdown` request, and `"startup_failed"` (in `FATAL`) when
+`startretries` was exhausted. It is `null` again once the process is
+restarted.
+
+`state` is the uppercase `ProcessState` name. Programs appear in
+their configuration order; processes appear in instance order.
 
 ## Error response
 

@@ -23,6 +23,7 @@ class Process:
     exit_code: int | None = None
     shutting_down: bool = False
     logger: logging.Logger = field(init=False, repr=False)
+    stop_reason: str | None = None  # "exited" | "stopped_by_user" | None
 
     def __post_init__(self):
         self.logger = logging.getLogger(f"taskmasterd.{self.name}")
@@ -87,6 +88,7 @@ class Process:
             return
 
         self.exit_code = None
+        self.stop_reason = None
         self.transition_to(ProcessState.STARTING)
         self.try_count += 1
 

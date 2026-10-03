@@ -56,9 +56,11 @@ def _print_status(programs: list[dict]):
     """
     for program in programs:
         for proc in program["processes"]:
-            uptime = f"{proc['uptime_seconds']:.1f}s" if proc["uptime_seconds"] is not None else "-"
-            pid = proc["pid"] if proc["pid"] is not None else "-"
-            print(f"{proc['name'][:24]:<25} {proc['state']:<10} pid={pid} uptime={uptime}")
+            uptime = f" uptime={proc['uptime_seconds']:.1f}s" if proc["uptime_seconds"] is not None else ""
+            pid = f" pid={proc['pid']}" if proc["pid"] is not None else ""
+            exit_info = f" exit={proc['exit_code']}" if proc["exit_code"] is not None else ""
+            reason_info = f" ({proc['stop_reason']})" if proc.get("stop_reason") else ""
+            print(f"{proc['name'][:24]:<25} {proc['state']:<10}{reason_info}{pid}{uptime}{exit_info}")
 
 
 def run(client: ClientIPC | None = None) -> int:

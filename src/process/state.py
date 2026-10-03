@@ -69,6 +69,7 @@ def _tick_starting(proc: Process):
 def _handle_backoff(proc: Process):
     """Retry a failed startup or mark the process as permanently failed."""
     if proc.shutting_down:
+        proc.stop_reason = "by request"
         proc.transition_to(ProcessState.STOPPED)
         return
     if proc.try_count <= proc.config.startretries:
@@ -80,6 +81,7 @@ def _handle_backoff(proc: Process):
             proc.try_count - 1,
             proc.config.startretries
         )
+        proc.stop_reason = "startup failed"
         proc.transition_to(ProcessState.FATAL)
 
 
@@ -102,6 +104,7 @@ def _tick_running(proc: Process):
 def _handle_exit(proc: Process):
     """Restart or stop a process after it exits according to its config."""
     if proc.shutting_down:
+        proc.stop_reason = "by request"
         proc.transition_to(ProcessState.STOPPED)
         return
 
@@ -112,6 +115,8 @@ def _handle_exit(proc: Process):
         proc.try_count = 0
         proc.logger.info("Restarting according to autorestart policy.")
         proc.start()
+    else:
+        proc.stop_reason = "exited"
 
 
 def _tick_stopping(proc: Process):
@@ -121,6 +126,7 @@ def _tick_stopping(proc: Process):
         proc.exit_code = exit_code
         proc.logger.info("Stopped with exit code %s.", exit_code)
         proc.transition_to(ProcessState.EXITED)
+        proc.stop_reason = "by request"
         proc.transition_to(ProcessState.STOPPED)
         return
 
