@@ -54,10 +54,17 @@ def setup_logging(logfile: Path, loglevel: str):
     logger.addHandler(stream_handler)
 
     # Check logs: journalctl -f
-    syslog_handler = SysLogHandler(address=SYSLOG_PATH)
-    syslog_handler.setLevel(logging.WARNING)
-    syslog_formatter = logging.Formatter("%(name)s: %(levelname)s - %(message)s")
-    syslog_handler.setFormatter(syslog_formatter)
-    logger.addHandler(syslog_handler)
+    try:
+        if not Path(SYSLOG_PATH).exists():
+            raise OSError(f"socket {SYSLOG_PATH} does not exist")
+        syslog_handler = SysLogHandler(address=SYSLOG_PATH)
+        if syslog_handler.socktype is None:
+            raise OSError(f"cannot connect to syslog socket {SYSLOG_PATH}")
+        syslog_handler.setLevel(logging.WARNING)
+        syslog_formatter = logging.Formatter("%(name)s: %(levelname)s - %(message)s")
+        syslog_handler.setFormatter(syslog_formatter)
+        logger.addHandler(syslog_handler)
+    except OSError as e:
+        logger.warning("SysLogHandler unavailable (%s). Continuing without syslog.", e)
 
     return logger

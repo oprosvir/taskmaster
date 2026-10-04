@@ -44,6 +44,18 @@ stopsignal = "TERM"  # SIGTERM: -15, SIGKILL: -9
 stoptime = 3
 
 # =========================================================================
+# ORPHAN PREVENTION TEST CASE
+# =========================================================================
+# Ensures grandchild processes (spawned by sh) are terminated via PGID.
+
+[program.test_orphan]
+cmd = "/bin/sh -c 'sleep 300'"
+stopsignal = "TERM"
+stoptime = 3
+autostart = false
+autorestart = "never"
+
+# =========================================================================
 # SPAWN FAILURE & RESTART TEST CASES
 # =========================================================================
 # Programs exit immediately, failing to stay alive for 'starttime'
@@ -168,3 +180,14 @@ cmd = '''
 '''
 umask = "077"  # -rw------- (0600)
 stdout = "./logs/umask.log"
+
+# =========================================================================
+# HIGH OUTPUT VOLUME TEST CASE (STRESS TEST)
+# =========================================================================
+# Generates 500,000 lines (~15 MB) instantly to test deadlock on OS pipe 
+# buffers (64 KB).
+
+[program.test_flood]
+cmd = "/bin/sh -c 'yes \"Taskmaster high volume output flood test\" | head -n 500000; sleep 30'"
+starttime = 1
+stdout = "./logs/flood.log"

@@ -6,19 +6,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from src.core.manager import ProgramNotFoundError
+from .protocol import MAX_MESSAGE_SIZE, RequestError
 
-MAX_MESSAGE_SIZE = 65_536
 COMMANDS = {"status", "start", "stop", "restart", "reload", "shutdown"}
 TARGET_COMMANDS = {"start", "stop", "restart"}
-
-
-class RequestError(Exception):
-    """A client request failed protocol validation."""
-
-    def __init__(self, code: str, message: str):
-        super().__init__(message)
-        self.code = code
 
 
 class CommandFailedError(RuntimeError):
@@ -191,12 +182,12 @@ class ServerIPC:
         try:
             data = self.dispatcher(command)
             response = {"ok": True, "data": data}
+        except RequestError as error:
+            self.logger.warning("Request failed [%s]: %s", command.get("command"), error)
+            response = self._error(error.code, str(error))
         except CommandFailedError as error:
             self.logger.warning("Command failed [%s]: %s", command.get("command"), error)
             response = self._error("COMMAND_FAILED", str(error))
-        except ProgramNotFoundError as error:
-            self.logger.warning("Command target not found [%s]: %s", command.get("command"), error)
-            response = self._error("UNKNOWN_TARGET", str(error))
         except ValueError as error:
             self.logger.warning("Invalid argument [%s]: %s", command.get("command"), error)
             response = self._error("INVALID_ARGUMENT", str(error))

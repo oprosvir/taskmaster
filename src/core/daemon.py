@@ -7,14 +7,14 @@ from pathlib import Path
 from pprint import pformat
 
 from src.config import diff_programs, drop_privileges, load_config, ConfigError
+from src.ipc.protocol import RequestError, SOCKET_PATH
 from src.ipc.server import CommandFailedError, ServerIPC
 
 from .event_loop import SLEEP_TIMEOUT, EventLoop
-from .manager import ProcessManager
+from .manager import ProcessManager, ProgramNotFoundError
 from .logger import setup_logging
 
 MAX_SHUTDOWN_WAIT = 30
-SOCKET_PATH = Path("/tmp/taskmaster.sock")
 
 
 class TaskmasterDaemon:
@@ -45,14 +45,18 @@ class TaskmasterDaemon:
         command = request["command"]
         target = request.get("target")
 
-        if command == "status":
-            return {"programs": self.manager.status(target)}
-        if command == "start":
-            return {"accepted": self.manager.start(target)}
-        if command == "stop":
-            return {"accepted": self.manager.stop(target)}
-        if command == "restart":
-            return {"accepted": self.manager.restart(target)}
+        try:
+            if command == "status":
+                return {"programs": self.manager.status(target)}
+            if command == "start":
+                return {"accepted": self.manager.start(target)}
+            if command == "stop":
+                return {"accepted": self.manager.stop(target)}
+            if command == "restart":
+                return {"accepted": self.manager.restart(target)}
+        except ProgramNotFoundError as error:
+            raise RequestError("UNKNOWN_TARGET", str(error)) from error
+
         if command == "reload":
             try:
                 self.reload_config()

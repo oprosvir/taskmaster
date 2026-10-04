@@ -2,8 +2,7 @@ import json
 import socket
 from pathlib import Path
 
-from .server import MAX_MESSAGE_SIZE
-from src.core.daemon import SOCKET_PATH
+from .protocol import MAX_MESSAGE_SIZE, SOCKET_PATH
 
 DEFAULT_TIMEOUT = 5.0
 

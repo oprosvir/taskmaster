@@ -1,13 +1,15 @@
 """Linux unit tests for control-shell operations on ProcessManager."""
 # python3 -m unittest discover -s tests -v
 
+import signal
 import unittest
 from unittest.mock import Mock, patch
 
 from src.config import ProgramConfig
 from src.core.manager import ProcessManager, ProgramNotFoundError
-from src.process.state import ProcessState
 from src.process.group import ProcessGroup
+from src.process.process import Process
+from src.process.state import ProcessState
 
 
 def program(name: str = "worker", numprocs: int = 1) -> ProgramConfig:
@@ -183,6 +185,28 @@ class ProcessGroupRestartTests(unittest.TestCase):
         self.assertEqual(proc.state, ProcessState.STARTING)
         self.assertFalse(proc.shutting_down)
         self.assertEqual(proc.try_count, 1)
+
+
+class ProcessSignallingTests(unittest.TestCase):
+    def setUp(self):
+        self.proc = Process(name="worker", config=program())
+        self.proc.popen = Mock(pid=1234)
+
+    @patch("src.process.process.os.killpg")
+    def test_send_stop_signal_uses_killpg_on_process_group(self, mock_killpg):
+        self.proc.state = ProcessState.RUNNING
+        self.proc.send_stop_signal()
+
+        mock_killpg.assert_called_once_with(1234, self.proc.config.stopsignal)
+        self.assertEqual(self.proc.state, ProcessState.STOPPING)
+        self.assertIsNotNone(self.proc.stop_time)
+
+    @patch("src.process.process.os.killpg")
+    def test_kill_uses_killpg_sigkill(self, mock_killpg):
+        self.proc.state = ProcessState.STOPPING
+
+        self.proc.kill()
+        mock_killpg.assert_called_once_with(1234, signal.SIGKILL)
 
 
 if __name__ == "__main__":

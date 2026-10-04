@@ -1,5 +1,6 @@
 import logging
 import os
+import signal
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -124,26 +125,32 @@ class Process:
                     stream.close()
 
     def send_stop_signal(self):
-        """Send the configured stop signal and transition to STOPPING."""
-        if not self.popen or self.state not in (ProcessState.RUNNING, ProcessState.STARTING):
+        """Send the configured stop signal to the process group and transition to STOPPING."""
+        if not self.popen or self.popen.pid is None or self.state not in (ProcessState.RUNNING, ProcessState.STARTING):
             return
 
         try:
             self.logger.info("Stopping with signal %s...", self.config.stopsignal.name)
-            self.popen.send_signal(self.config.stopsignal)
+            try:
+                os.killpg(self.popen.pid, self.config.stopsignal)
+            except ProcessLookupError:
+                self.popen.send_signal(self.config.stopsignal)
             self.stop_time = time.monotonic()
             self.transition_to(ProcessState.STOPPING)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             return
 
     def kill(self):
-        """Forcefully terminate — used when graceful stop exceeds stoptime."""
-        if self.popen is None:
+        """Forcefully terminate the process group — used when graceful stop exceeds stoptime."""
+        if self.popen is None or self.popen.pid is None:
             return
 
         try:
             self.logger.warning("Graceful stop timed out; force-killing process.")
-            self.popen.kill()
+            try:
+                os.killpg(self.popen.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                self.popen.kill()
             self.logger.info("SIGKILL sent.")
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             return

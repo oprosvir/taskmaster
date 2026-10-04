@@ -53,6 +53,7 @@ taskmaster/
 │   │   ├── process.py     #   Process: single process wrapper (Popen, PID, signals, logs)
 │   │   └── group.py       #   ProcessGroup: manages replicas (numprocs) and pending restarts
 │   └── ipc/               # Inter-process communication
+│       ├── protocol.py    #   Wire protocol constants (SOCKET_PATH, MAX_MESSAGE_SIZE) & RequestError
 │       ├── server.py      #   ServerIPC: non-blocking NDJSON server (daemon side)
 │       ├── client.py      #   ClientIPC: one request per connection (ctl side)
 │       ├── parser.py      #   Command parser (shlex, argument count & type validation)
@@ -90,11 +91,6 @@ flowchart LR
 
     Signals["OS Signals (SIGHUP / SIGINT / SIGTERM)"] -. "flag only" .-> EventLoop
 ```
-
-#### Key Architecture Principles
-1. **Single-Threaded Non-Blocking Loop**: The daemon loop never blocks on child processes or I/O. Processes are inspected using non-blocking `Popen.poll()`. Sockets are registered in a `selectors.DefaultSelector`.
-2. **Flag-Only Signal Handling**: Signal handlers (`SIGHUP`, `SIGINT`, `SIGTERM`) only toggle boolean flags (`reload_requested`, `shutdown_requested`). All actions execute synchronously inside the event loop.
-3. **Strict Shell-Free Execution**: The daemon executes process commands directly via `execve` (`shell=False`) using parsed argument vectors (`argv`), preventing shell-injection vulnerabilities.
 
 ---
 
