@@ -1,30 +1,38 @@
+# =========================================================================
+# GLOBAL CONFIGURATION
+# =========================================================================
 [global]
 logfile = "./logs/taskmaster.log"
 loglevel = "info"
-user = "oprosvir"
+# user = "oprosvir"
 
-# Signal handling tests:
-# each program uses a different stop signal.
+# =========================================================================
+# SIGNAL HANDLING & EXIT CODES TEST CASES
+# =========================================================================
+# Each program uses a different stop signal to test IPC and signal routing.
+
 [program.test_sleep_int]
 cmd = "/usr/bin/sleep 30"
-autostart = true
-workingdir = "/tmp"
-stopsignal = "INT"
+stopsignal = "INT"  # -2
 autorestart = "always"
 
 [program.test_sleep_hup]
 cmd = "/usr/bin/sleep 300"
-stopsignal = "HUP"
+stopsignal = "HUP"  # -1
 
 [program.test_sleep_usr1]
 cmd = "/usr/bin/sleep 300"
-stopsignal = "USR1"
+stopsignal = "USR1"  # -10
 
 [program.test_sleep_quit]
 cmd = "/usr/bin/sleep 300"
-stopsignal = "QUIT"
+stopsignal = "QUIT"  # -3
 
+# =========================================================================
+# TIMEOUT & FORCED STOP TEST CASE
+# =========================================================================
 # Forced-stop test: the process ignores SIGTERM until SIGKILL is sent.
+
 [program.test_ignore_term]
 cmd = '''
 /usr/bin/python3 -c "
@@ -32,43 +40,61 @@ cmd = '''
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     time.sleep(300)
 "'''
-autostart = true
-stopsignal = "TERM"
+stopsignal = "TERM"  # SIGTERM: -15, SIGKILL: -9
 stoptime = 3
 
-# Expected and unexpected exit codes.
+# =========================================================================
+# SPAWN FAILURE & RESTART TEST CASES
+# =========================================================================
+# Programs exit immediately, failing to stay alive for 'starttime'
+
 [program.test_true]
 cmd = "/usr/bin/true"
-autostart = true
+starttime = 5  # default
+startretries = 3  # default
 
 [program.test_false]
 cmd = "/usr/bin/false"
-autostart = true
-startretries = 3
+starttime = 2
+startretries = 2
 
-# Multiple process instances.
+[program.test_nonexist]
+cmd = "nonexisting"
+starttime = 1
+startretries = 1
+
+# =========================================================================
+# MULTIPLE PROCESS INSTANCES (NUMPROCS)
+# =========================================================================
+
 [program.test_workers]
 cmd = "/usr/bin/sleep 30"
 numprocs = 3
-autostart = true
 
-# Spawn failure and retry exhaustion.
-[program.test_nonexist]
-cmd = "nonexisting"
+# =========================================================================
+# WORKING DIRECTORY & WEB SERVER TEST CASES
+# =========================================================================
 
-# Graceful shutdown with SIGINT.
+[program.test_workingdir]
+cmd = "/bin/sh -c 'pwd; ls -la; sleep 30'"
+workingdir = "/tmp"
+stdout = "./logs/workingdir.log"
+
 [program.test_server]
 cmd = "/usr/bin/python3 -m http.server 8080"
-workingdir = "/home/oprosvir/my_website/build"
-starttime = 3
-stopsignal = "INT"
-stdout = "/home/oprosvir/my_website/logs/server.log"
-stderr = "/home/oprosvir/my_website/logs/server.err"
+# TODO: copy static file to vm
+# workingdir = "/home/oprosvir/my_website/build"
+stdout = "./logs/server.log"
+stderr = "./logs/server.err"
+
+# =========================================================================
+# I/O REDIRECTION & LOGGING TEST CASES
+# =========================================================================
 
 # Stdout redirection test
 [program.ping_demo]
 cmd = "/usr/bin/ping 8.8.8.8"
-stdout = "/home/oprosvir/taskmaster/logs/ping.log"
+stdout = "./logs/ping.log"
 
 # Dual-stream logging test
 [program.heartbeat]
@@ -83,10 +109,62 @@ cmd = '''
     done
 '
 '''
-stdout = "/home/oprosvir/taskmaster/logs/heartbeat.log"
-stderr = "/home/oprosvir/taskmaster/logs/heartbeat.err"
+stdout = "./logs/heartbeat.log"
+stderr = "./logs/heartbeat.err"
 
 # Permission denied for logs, discarded
 [program.ping_root]
 cmd = "/usr/bin/ping 8.8.8.8"
 stdout = "/root/ping.log"
+
+# =========================================================================
+# AUTORESTART POLICY TEST CASES
+# =========================================================================
+
+[program.test_always]
+cmd = "/bin/sh -c 'echo \"[Always] Running...\"; sleep 2; echo \"[Always] Exiting with 0\"; exit 0'"
+autostart = false
+autorestart = "always"
+starttime = 1
+stdout = "./logs/autorestart.log"
+
+[program.test_never]
+cmd = "/bin/sh -c 'echo \"[Never] Running...\"; sleep 2; echo \"[Never] Crashing with 1\"; exit 1'"
+autostart = false
+autorestart = "never"
+starttime = 1
+stdout = "./logs/autorestart.log"
+
+[program.test_unexpected]
+cmd = "/bin/sh -c 'echo \"[Unexpected] Running...\"; sleep 2; echo \"[Unexpected] Exiting with 2\"; exit 2'"
+autostart = false
+autorestart = "unexpected"
+exitcodes = [0, 1]
+starttime = 1
+stdout = "./logs/autorestart.log"
+
+# =========================================================================
+# ENVIRONMENT VARIABLES (ENV)
+# =========================================================================
+
+[program.test_env]
+cmd = "/bin/sh -c 'echo \"FOO=$FOO, APP_ENV=$APP_ENV\"; sleep 30'"
+env = { FOO = "taskmaster_bar", APP_ENV = "production" }
+stdout = "./logs/env.log"
+
+# =========================================================================
+# FILE CREATION MASK (UMASK)
+# =========================================================================
+
+[program.test_umask]
+cmd = '''
+/bin/sh -c '
+    umask
+    touch /tmp/taskmaster_umask_test.txt
+    ls -l /tmp/taskmaster_umask_test.txt
+    rm -f /tmp/taskmaster_umask_test.txt
+    sleep 30
+'
+'''
+umask = "077"  # -rw------- (0600)
+stdout = "./logs/umask.log"

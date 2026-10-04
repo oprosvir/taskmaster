@@ -1,5 +1,5 @@
 """Linux unit tests for control-shell operations on ProcessManager."""
-# PYTHONPATH=src python3 -m unittest discover -s tests -v
+# python3 -m unittest discover -s tests -v
 
 import unittest
 from unittest.mock import Mock, patch
@@ -50,6 +50,18 @@ class ProcessManagerTargetTests(unittest.TestCase):
         with self.assertRaises(ProgramNotFoundError):
             self.manager._resolve_target("")
 
+    def test_pid_reported_in_active_states_and_none_in_terminal(self):
+        proc = self.group.processes[0]
+        proc.popen = Mock(pid=4321)
+
+        for state in (ProcessState.STARTING, ProcessState.RUNNING, ProcessState.STOPPING):
+            proc.state = state
+            self.assertEqual(proc.pid, 4321)
+
+        for state in (ProcessState.STOPPED, ProcessState.BACKOFF, ProcessState.EXITED, ProcessState.FATAL):
+            proc.state = state
+            self.assertIsNone(proc.pid)
+
     def test_status_for_instance_contains_only_that_instance(self):
         worker_0, worker_1 = self.group.processes
         worker_0.state = ProcessState.RUNNING
@@ -68,6 +80,7 @@ class ProcessManagerTargetTests(unittest.TestCase):
                     "pid": None,
                     "uptime_seconds": None,
                     "exit_code": None,
+                    "stop_reason": "not started",
                 }
             ],
         )
@@ -163,7 +176,7 @@ class ProcessGroupRestartTests(unittest.TestCase):
         proc = group.processes[0]
         proc.state = ProcessState.FATAL
 
-        with patch("process.process.subprocess.Popen") as popen:
+        with patch("src.process.process.subprocess.Popen") as popen:
             popen.return_value.pid = 99
             group.start([proc])
 

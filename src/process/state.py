@@ -11,13 +11,13 @@ if TYPE_CHECKING:
 class ProcessState(Enum):
     """FSM states for a managed process."""
 
-    STOPPED = auto()    # Stopped by the user or not started yet
-    STARTING = auto()   # Popen was called; starttime countdown is in progress
-    RUNNING = auto()    # Stayed alive for at least starttime seconds
-    BACKOFF = auto()    # Failed before starttime; waiting for a retry
-    STOPPING = auto()   # Stop signal sent; waiting up to stoptime for exit
-    EXITED = auto()     # Process exited after reaching RUNNING
-    FATAL = auto()      # startretries exceeded; no further retries are allowed
+    STOPPED = auto()    # Terminal stopped state: not started yet, stopped by request, or exited
+    STARTING = auto()   # Popen was called; `starttime` countdown is in progress
+    RUNNING = auto()    # Stayed alive for at least `starttime` seconds
+    BACKOFF = auto()    # Failed before `starttime` or failed to spawn; retrying or entering FATAL
+    STOPPING = auto()   # Stop signal sent; waiting up to `stoptime` for exit
+    EXITED = auto()     # Process exited (from RUNNING or STOPPING); checked for autorestart or stopped
+    FATAL = auto()      # `startretries` exceeded; no further retries are allowed
 
 
 class InvalidTransition(RuntimeError):

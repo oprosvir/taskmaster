@@ -23,7 +23,7 @@ class Process:
     exit_code: int | None = None
     shutting_down: bool = False
     logger: logging.Logger = field(init=False, repr=False)
-    stop_reason: str | None = None  # "exited" | "stopped_by_user" | None
+    stop_reason: str | None = "not started"  # "exited" | "by request" | "startup failed"
 
     def __post_init__(self):
         self.logger = logging.getLogger(f"taskmasterd.{self.name}")
@@ -32,7 +32,7 @@ class Process:
     @property
     def pid(self) -> int | None:
         """Return the OS process ID if the process is active, otherwise None."""
-        if self.state != ProcessState.RUNNING or self.popen is None:
+        if self.state not in (ProcessState.STARTING, ProcessState.RUNNING, ProcessState.STOPPING) or self.popen is None:
             return None
         return self.popen.pid
 

@@ -81,12 +81,16 @@ For `status`, it contains this stable representation:
 }
 ```
 
-`pid`, `uptime_seconds`, `exit_code`, and `stop_reason` are `null` when not applicable.
+`pid`, `uptime_seconds`, `exit_code`, and `stop_reason` are `null` when not applicable:
+- `pid` is the integer OS process ID while active (`STARTING`, `RUNNING`, `STOPPING`), and `null` otherwise.
+- `uptime_seconds` is the elapsed running time in seconds while in `RUNNING`, and `null` otherwise.
+- `exit_code` is the integer exit code once known, and `null` while active or not started.
 
 `stop_reason` is set in the `STOPPED` and `FATAL` states:
+`"not started"` when the process has not yet been launched since daemon startup,
 `"exited"` when the process ended on its own and autorestart decided not to
 restart it, `"by request"` when it stopped because of an explicit
-`stop`/`restart`/`shutdown` request, and `"startup_failed"` (in `FATAL`) when
+`stop`/`restart`/`shutdown` request, and `"startup failed"` (in `FATAL`) when
 `startretries` was exhausted. It is `null` again once the process is
 restarted.
 
