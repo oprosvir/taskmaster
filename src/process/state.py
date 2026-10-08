@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import time
-from enum import Enum, auto
+from enum import Enum, StrEnum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .process import Process
+
+
+class StopReason(StrEnum):
+    """Reasons why a process is in STOPPED or FATAL state."""
+
+    NOT_STARTED = "not started"
+    EXITED = "exited"
+    BY_REQUEST = "by request"
+    STARTUP_FAILED = "startup failed"
 
 
 class ProcessState(Enum):
@@ -69,7 +78,7 @@ def _tick_starting(proc: Process):
 def _handle_backoff(proc: Process):
     """Retry a failed startup or mark the process as permanently failed."""
     if proc.shutting_down:
-        proc.stop_reason = "by request"
+        proc.stop_reason = StopReason.BY_REQUEST
         proc.transition_to(ProcessState.STOPPED)
         return
     if proc.try_count <= proc.config.startretries:
@@ -81,7 +90,7 @@ def _handle_backoff(proc: Process):
             proc.try_count - 1,
             proc.config.startretries
         )
-        proc.stop_reason = "startup failed"
+        proc.stop_reason = StopReason.STARTUP_FAILED
         proc.transition_to(ProcessState.FATAL)
 
 
@@ -104,7 +113,7 @@ def _tick_running(proc: Process):
 def _handle_exit(proc: Process):
     """Restart or stop a process after it exits according to its config."""
     if proc.shutting_down:
-        proc.stop_reason = "by request"
+        proc.stop_reason = StopReason.BY_REQUEST
         proc.transition_to(ProcessState.STOPPED)
         return
 
@@ -116,7 +125,7 @@ def _handle_exit(proc: Process):
         proc.logger.info("Restarting according to autorestart policy.")
         proc.start()
     else:
-        proc.stop_reason = "exited"
+        proc.stop_reason = StopReason.EXITED
 
 
 def _tick_stopping(proc: Process):
@@ -126,7 +135,7 @@ def _tick_stopping(proc: Process):
         proc.exit_code = exit_code
         proc.logger.info("Stopped with exit code %s.", exit_code)
         proc.transition_to(ProcessState.EXITED)
-        proc.stop_reason = "by request"
+        proc.stop_reason = StopReason.BY_REQUEST
         proc.transition_to(ProcessState.STOPPED)
         return
 

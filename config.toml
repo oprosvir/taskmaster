@@ -191,3 +191,18 @@ stdout = "./logs/umask.log"
 cmd = "/bin/sh -c 'yes \"Taskmaster high volume output flood test\" | head -n 500000; sleep 30'"
 starttime = 1
 stdout = "./logs/flood.log"
+
+# =========================================================================
+# DEPENDENCY ORDERING TEST CASES (DEPENDS_ON BONUS)
+# =========================================================================
+# test_dep_web waits until test_dep_db reaches RUNNING (starttime = 3s).
+
+[program.test_dep_db]
+cmd = "/usr/bin/sleep 30"
+starttime = 3
+autostart = false
+
+[program.test_dep_web]
+cmd = "/usr/bin/sleep 30"
+depends_on = "test_dep_db"
+autostart = false

@@ -22,9 +22,23 @@ class ProcessGroup:
             proc = Process(name=proc_name, config=self.config)
             self.processes.append(proc)
 
-    def start_if_autostart(self):
-        """Start all processes when autostart is enabled."""
-        if self.config.autostart:
+    @property
+    def is_running(self) -> bool:
+        """True if the group has processes and all of them are RUNNING."""
+        return bool(self.processes) and all(p.state == state.ProcessState.RUNNING for p in self.processes)
+
+    def start_if_autostart(self, deps_ready: bool):
+        """Start all processes if autostart is enabled and dependencies are ready."""
+        if (
+            self.config.autostart
+            and deps_ready
+            and self.processes
+            and all(
+                p.state == state.ProcessState.STOPPED
+                and p.stop_reason == state.StopReason.NOT_STARTED
+                for p in self.processes
+            )
+        ):
             self.start()
 
     def start(self, targets: list[Process] | None = None):

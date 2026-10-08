@@ -5,8 +5,7 @@ Taskmaster is a **job-control daemon modeled on `supervisor` 3.1**, implemented 
 It starts programs as child processes, keeps them alive according to their config, hot-reloads the config
 on `SIGHUP`, logs what happens to a file, and comes with a control shell (`status/start/stop/restart/reload/shutdown`).
 
-The **client/server bonus** is built: `taskmasterd` (the daemon) and `taskmasterctl` (a readline shell) talk over
-a Unix socket. The **privilege-drop bonus** and the **advanced logging bonus** (syslog + rotating file) are built too.
+Implemented bonuses include the **client/server** architecture (`taskmasterd` and `taskmasterctl` over a Unix socket), **privilege drop**, and **advanced logging** (syslog + rotating file). An additional **dependency ordering** feature (`depends_on`) is implemented beyond the subject requirements.
 
 <img src="docs/assets/banner.png" alt="Taskmaster Hero Banner" width="800">
 
@@ -183,6 +182,7 @@ stderr       = "./logs/worker.err"              # default None (/dev/null): stde
 env          = { LOG_LEVEL = "debug" }          # default {}: extra environment variables
 workingdir   = "/tmp"                           # default None: working directory (must exist)
 umask        = "022"                            # default None: file creation mask (octal)
+depends_on   = ["db"]                           # default []: programs that must reach RUNNING before start
 ```
 
 ---

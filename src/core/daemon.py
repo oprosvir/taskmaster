@@ -11,7 +11,7 @@ from src.ipc.protocol import RequestError, SOCKET_PATH
 from src.ipc.server import CommandFailedError, ServerIPC
 
 from .event_loop import SLEEP_TIMEOUT, EventLoop
-from .manager import ProcessManager, ProgramNotFoundError
+from .manager import DependencyNotReadyError, ProcessManager, ProgramNotFoundError
 from .logger import setup_logging
 
 MAX_SHUTDOWN_WAIT = 30
@@ -56,6 +56,8 @@ class TaskmasterDaemon:
                 return {"accepted": self.manager.restart(target)}
         except ProgramNotFoundError as error:
             raise RequestError("UNKNOWN_TARGET", str(error)) from error
+        except DependencyNotReadyError as error:
+            raise RequestError("COMMAND_FAILED", str(error)) from error
 
         if command == "reload":
             try:

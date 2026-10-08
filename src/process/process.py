@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from src.config import ProgramConfig
 
-from .state import ALLOWED_TRANSITIONS, InvalidTransition, ProcessState, spawn_failed
+from .state import ALLOWED_TRANSITIONS, InvalidTransition, ProcessState, StopReason, spawn_failed
 
 
 @dataclass
@@ -24,7 +24,7 @@ class Process:
     exit_code: int | None = None
     shutting_down: bool = False
     logger: logging.Logger = field(init=False, repr=False)
-    stop_reason: str | None = "not started"  # "exited" | "by request" | "startup failed"
+    stop_reason: StopReason | None = StopReason.NOT_STARTED
 
     def __post_init__(self):
         self.logger = logging.getLogger(f"taskmasterd.{self.name}")

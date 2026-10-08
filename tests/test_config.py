@@ -1,12 +1,11 @@
 """Unit tests for configuration loading, validation, models, and diffing."""
 
-import os
 import signal
 import tempfile
 import unittest
 from pathlib import Path
 
-from src.config.diff import ConfigDiff, diff_programs
+from src.config.diff import diff_programs
 from src.config.loader import load_config
 from src.config.models import ConfigError, GlobalConfig, ProgramConfig
 
@@ -201,6 +200,51 @@ class ProgramConfigValidationTests(unittest.TestCase):
             with self.assertRaises(ConfigError):
                 ProgramConfig(name="w", cmd="sleep 1", umask=invalid)
 
+    def test_depends_on_validation(self):
+        # List of strings
+        cfg = ProgramConfig(name="w", cmd="sleep 1", depends_on=["db", "redis"])
+        self.assertEqual(cfg.depends_on, ["db", "redis"])
+
+        # Single string gets converted to a list
+        cfg_single = ProgramConfig(name="w", cmd="sleep 1", depends_on="database")
+        self.assertEqual(cfg_single.depends_on, ["database"])
+
+        # Single string with whitespace
+        cfg_single_ws = ProgramConfig(name="w", cmd="sleep 1", depends_on="  database  ")
+        self.assertEqual(cfg_single_ws.depends_on, ["database"])
+
+        # Default is empty list
+        self.assertEqual(ProgramConfig(name="w", cmd="sleep 1").depends_on, [])
+
+        # Normalization of whitespace
+        cfg_ws = ProgramConfig(name="w", cmd="sleep 1", depends_on=["  db  ", "redis "])
+        self.assertEqual(cfg_ws.depends_on, ["db", "redis"])
+
+        # Self-dependency is rejected (even as a string)
+        with self.assertRaises(ConfigError) as ctx:
+            ProgramConfig(name="w", cmd="sleep 1", depends_on="w ")
+        self.assertIn("cannot depend on itself", str(ctx.exception))
+
+        # Self-dependency is rejected (even with trailing whitespace)
+        with self.assertRaises(ConfigError) as ctx:
+            ProgramConfig(name="w", cmd="sleep 1", depends_on=["w "])
+        self.assertIn("cannot depend on itself", str(ctx.exception))
+
+        # Duplicate entries are rejected (even when normalized)
+        with self.assertRaises(ConfigError) as ctx:
+            ProgramConfig(name="w", cmd="sleep 1", depends_on=["db", "db "])
+        self.assertIn("duplicate entries", str(ctx.exception))
+
+        # Invalid types or invalid elements
+        for invalid in (123, None, [""], ""):
+            with self.assertRaises(ConfigError):
+                ProgramConfig(name="w", cmd="sleep 1", depends_on=invalid)
+
+        with self.assertRaises(ConfigError):
+            ProgramConfig(name="w", cmd="sleep 1", depends_on=["   "])
+        with self.assertRaises(ConfigError):
+            ProgramConfig(name="w", cmd="sleep 1", depends_on=[123])
+
 
 class LoadConfigTests(unittest.TestCase):
     """Tests for the load_config() TOML loader."""
@@ -319,6 +363,172 @@ class LoadConfigTests(unittest.TestCase):
         with self.assertRaises(ConfigError):
             load_config(str(self.config_path))
 
+    def test_depends_on_valid_dependency_chain(self):
+        content = """
+        [program.a]
+        cmd = "sleep 1"
+
+        [program.b]
+        cmd = "sleep 1"
+        depends_on = ["a"]
+
+        [program.c]
+        cmd = "sleep 1"
+        depends_on = ["b"]
+        """
+        self.config_path.write_text(content)
+        _, progs = load_config(str(self.config_path))
+        self.assertEqual(progs["c"].depends_on, ["b"])
+        self.assertEqual(progs["b"].depends_on, ["a"])
+        self.assertEqual(progs["a"].depends_on, [])
+
+    def test_depends_on_unknown_program_raises(self):
+        content = """
+        [program.web]
+        cmd = "sleep 1"
+        depends_on = ["database"]
+        """
+        self.config_path.write_text(content)
+        with self.assertRaises(ConfigError) as ctx:
+            load_config(str(self.config_path))
+        self.assertIn("depends on unknown program 'database'", str(ctx.exception))
+
+    def test_depends_on_two_cycle_raises(self):
+        content = """
+        [program.a]
+        cmd = "sleep 1"
+        depends_on = ["b"]
+
+        [program.b]
+        cmd = "sleep 1"
+        depends_on = ["a"]
+        """
+        self.config_path.write_text(content)
+        with self.assertRaises(ConfigError) as ctx:
+            load_config(str(self.config_path))
+        self.assertIn("dependency cycle detected:", str(ctx.exception))
+        self.assertIn("a -> b -> a", str(ctx.exception))
+
+    def test_depends_on_three_cycle_raises(self):
+        content = """
+        [program.a]
+        cmd = "sleep 1"
+        depends_on = ["b"]
+
+        [program.b]
+        cmd = "sleep 1"
+        depends_on = ["c"]
+
+        [program.c]
+        cmd = "sleep 1"
+        depends_on = ["a"]
+        """
+        self.config_path.write_text(content)
+        with self.assertRaises(ConfigError) as ctx:
+            load_config(str(self.config_path))
+        self.assertIn("dependency cycle detected:", str(ctx.exception))
+        self.assertIn("a -> b -> c -> a", str(ctx.exception))
+
+    def test_depends_on_diamond_dag_succeeds(self):
+        content = """
+        [program.d]
+        cmd = "sleep 1"
+
+        [program.b]
+        cmd = "sleep 1"
+        depends_on = ["d"]
+
+        [program.c]
+        cmd = "sleep 1"
+        depends_on = ["d"]
+
+        [program.a]
+        cmd = "sleep 1"
+        depends_on = ["b", "c"]
+        """
+        self.config_path.write_text(content)
+        _, progs = load_config(str(self.config_path))
+        self.assertEqual(progs["a"].depends_on, ["b", "c"])
+
+    def test_depends_on_cycle_with_prefix_chain(self):
+        content = """
+        [program.entry]
+        cmd = "sleep 1"
+        depends_on = ["p1"]
+
+        [program.p1]
+        cmd = "sleep 1"
+        depends_on = ["p2"]
+
+        [program.p2]
+        cmd = "sleep 1"
+        depends_on = ["p1"]
+        """
+        self.config_path.write_text(content)
+        with self.assertRaises(ConfigError) as ctx:
+            load_config(str(self.config_path))
+        self.assertIn("dependency cycle detected: p1 -> p2 -> p1", str(ctx.exception))
+
+    def test_load_config_orders_programs_in_topological_launch_order(self):
+        content = """
+        [program.frontend]
+        cmd = "sleep 1"
+        depends_on = ["backend"]
+
+        [program.cache]
+        cmd = "sleep 1"
+        depends_on = ["db"]
+
+        [program.backend]
+        cmd = "sleep 1"
+        depends_on = ["db"]
+
+        [program.db]
+        cmd = "sleep 1"
+        """
+        self.config_path.write_text(content)
+        _, progs = load_config(str(self.config_path))
+        keys = list(progs.keys())
+        self.assertLess(keys.index("db"), keys.index("cache"))
+        self.assertLess(keys.index("db"), keys.index("backend"))
+        self.assertLess(keys.index("backend"), keys.index("frontend"))
+
+    def test_load_config_diamond_dag_launch_order(self):
+        content = """
+        [program.a]
+        cmd = "sleep 1"
+        depends_on = ["b", "c"]
+
+        [program.b]
+        cmd = "sleep 1"
+        depends_on = ["d"]
+
+        [program.c]
+        cmd = "sleep 1"
+        depends_on = ["d"]
+
+        [program.d]
+        cmd = "sleep 1"
+        """
+        self.config_path.write_text(content)
+        _, progs = load_config(str(self.config_path))
+        keys = list(progs.keys())
+        self.assertEqual(keys[0], "d")
+        self.assertEqual(keys[-1], "a")
+        self.assertIn(keys[1], {"b", "c"})
+        self.assertIn(keys[2], {"b", "c"})
+
+    def test_resolve_dependencies_returns_topological_order(self):
+        from src.config.loader import _resolve_dependencies
+
+        cfgs = {
+            "web": ProgramConfig(name="web", cmd="sleep 1", depends_on=["api"]),
+            "api": ProgramConfig(name="api", cmd="sleep 1", depends_on=["db"]),
+            "db": ProgramConfig(name="db", cmd="sleep 1"),
+        }
+        order = _resolve_dependencies(cfgs)
+        self.assertEqual(order, ["db", "api", "web"])
+
 
 class DiffProgramsTests(unittest.TestCase):
     """Tests for diff_programs() comparison logic."""
@@ -349,6 +559,15 @@ class DiffProgramsTests(unittest.TestCase):
         self.assertEqual(diff.unchanged, set())
         self.assertEqual(diff.changed, {"p1": p1_modified})
 
+    def test_diff_changed_detects_depends_on_modifications(self):
+        p1_with_dep = ProgramConfig(name="p1", cmd="sleep 10", depends_on=["p2"])
+        old = {"p1": self.prog1}
+        new = {"p1": p1_with_dep}
+
+        diff = diff_programs(old, new)
+        self.assertEqual(diff.changed, {"p1": p1_with_dep})
+        self.assertEqual(diff.unchanged, set())
+
     def test_diff_unchanged_when_configs_are_identical(self):
         old = {"p1": self.prog1, "p2": self.prog2}
         new = {"p1": ProgramConfig(name="p1", cmd="sleep 10"), "p2": self.prog2}
@@ -358,6 +577,17 @@ class DiffProgramsTests(unittest.TestCase):
         self.assertEqual(diff.removed, set())
         self.assertEqual(diff.unchanged, {"p1", "p2"})
         self.assertEqual(diff.changed, {})
+
+    def test_diff_programs_preserves_new_order_for_added_and_changed(self):
+        old = {"p1": self.prog1}
+        p1_mod = ProgramConfig(name="p1", cmd="sleep 99")
+        p2 = ProgramConfig(name="p2", cmd="sleep 20")
+        p3 = ProgramConfig(name="p3", cmd="sleep 30")
+        new = {"p3": p3, "p1": p1_mod, "p2": p2}
+
+        diff = diff_programs(old, new)
+        self.assertEqual(list(diff.added.keys()), ["p3", "p2"])
+        self.assertEqual(list(diff.changed.keys()), ["p1"])
 
 
 if __name__ == "__main__":

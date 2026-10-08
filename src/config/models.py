@@ -71,6 +71,7 @@ class ProgramConfig:
     env: dict[str, str] = field(default_factory=dict)
     workingdir: str | None = None
     umask: str | None = None
+    depends_on: list[str] = field(default_factory=list)
     argv: list[str] = field(default_factory=list, init=False)
 
     def __post_init__(self):
@@ -88,6 +89,7 @@ class ProgramConfig:
         self._validate_env()
         self._validate_workingdir()
         self._validate_umask()
+        self._validate_depends_on()
 
     def _validate_cmd(self):
         if not isinstance(self.cmd, str) or not self.cmd.strip():
@@ -190,3 +192,21 @@ class ProgramConfig:
         if not (0 <= value <= 0o777):
             raise ConfigError(f"umask out of range: {self.umask!r}")
         self.umask = value
+
+    def _validate_depends_on(self):
+        if isinstance(self.depends_on, str):
+            self.depends_on = [self.depends_on]
+        elif not isinstance(self.depends_on, list):
+            raise ConfigError("depends_on must be a program name or a list of program names")
+
+        normalized: list[str] = []
+        for dep in self.depends_on:
+            if not isinstance(dep, str) or not dep.strip():
+                raise ConfigError("depends_on must be a program name or a list of program names")
+            normalized.append(dep.strip())
+        self.depends_on = normalized
+
+        if self.name in self.depends_on:
+            raise ConfigError(f"program {self.name!r} cannot depend on itself")
+        if len(set(self.depends_on)) != len(self.depends_on):
+            raise ConfigError(f"duplicate entries in depends_on: {self.depends_on!r}")

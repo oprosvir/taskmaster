@@ -11,6 +11,10 @@ class ProgramNotFoundError(Exception):
     """Raised when a command references a program name that doesn't exist."""
 
 
+class DependencyNotReadyError(Exception):
+    """Raised when a command cannot be executed because dependencies are not ready."""
+
+
 class ProcessManager:
     """Coordinates and manages multiple process groups within the daemon."""
 
@@ -36,9 +40,9 @@ class ProcessManager:
     # =========================================================================
 
     def start_all(self):
-        """Start every group whose config enables autostart."""
+        """Start every group whose config enables autostart and whose dependencies are met."""
         for group in self.groups.values():
-            group.start_if_autostart()
+            group.start_if_autostart(self._deps_ready(group))
 
     def stop_all(self):
         """Request a graceful stop for every active process."""
@@ -58,7 +62,7 @@ class ProcessManager:
                         "pid": proc.pid,
                         "uptime_seconds": proc.uptime,
                         "exit_code": proc.exit_code,
-                        "stop_reason": proc.stop_reason,
+                        "stop_reason": proc.stop_reason.value if proc.stop_reason is not None else None,
                     }
                     for proc in (procs if procs is not None else group.processes)
                 ],
@@ -98,6 +102,10 @@ class ProcessManager:
         for group in self.draining_groups:
             group.tick()
 
+        # Autostart any pending autostart groups whose dependencies are now RUNNING
+        for group in self.groups.values():
+            group.start_if_autostart(self._deps_ready(group))
+
         self._process_draining_groups()
 
     # =========================================================================
@@ -120,8 +128,8 @@ class ProcessManager:
         """Create, configure, and optionally start a new process group."""
         group = ProcessGroup(name=name, config=cfg)
         group.create_processes()
-        group.start_if_autostart()
         self.groups[name] = group
+        group.start_if_autostart(self._deps_ready(group))
 
     def _remove_group(self, name: str):
         """Stop an existing group and move it to draining_groups."""
@@ -133,17 +141,42 @@ class ProcessManager:
     # 5. HELPER METHODS
     # =========================================================================
 
+    def _deps_ready(self, group: ProcessGroup) -> bool:
+        """Return True if all dependencies of the group are in RUNNING state."""
+        return all(
+            dep_name in self.groups and self.groups[dep_name].is_running
+            for dep_name in group.config.depends_on
+        )
+
+    def _check_dependencies(self, group: ProcessGroup, target: str, action_name: str):
+        """Ensure all dependencies are RUNNING, or raise DependencyNotReadyError."""
+        if not self._deps_ready(group):
+            unready = [
+                d for d in group.config.depends_on
+                if not (d in self.groups and self.groups[d].is_running)
+            ]
+            raise DependencyNotReadyError(
+                f"cannot {action_name} {target!r}: dependencies not RUNNING ({', '.join(unready)})"
+            )
+
     def _execute_action(self, target: str, action_name: str) -> list[str]:
         """Helper to resolve target, execute a group action, and return affected process names."""
         resolved = self._resolve_target(target)
+
+        # Immediate rejection for start/restart of targeted program if dependencies are not RUNNING
+        if action_name in ("start", "restart") and target != ALL_TARGET:
+            for group, _ in resolved:
+                self._check_dependencies(group, target, action_name)
+
+        started = []
         for group, procs in resolved:
+            if action_name in ("start", "restart") and target == ALL_TARGET and not self._deps_ready(group):
+                continue
             action = getattr(group, action_name)
             action(procs)
-        return [
-            proc.name
-            for group, procs in resolved
-            for proc in (procs if procs is not None else group.processes)
-        ]
+            started.extend([proc.name for proc in (procs if procs is not None else group.processes)])
+
+        return started
 
     def _resolve_target(self, target: str) -> list[tuple[ProcessGroup, list[Process] | None]]:
         """Resolve a protocol target to (group, processes) pairs.
