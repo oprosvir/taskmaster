@@ -27,11 +27,10 @@ class ProcessGroup:
         """True if the group has processes and all of them are RUNNING."""
         return bool(self.processes) and all(p.state == state.ProcessState.RUNNING for p in self.processes)
 
-    def start_if_autostart(self, deps_ready: bool):
-        """Start all processes if autostart is enabled and dependencies are ready."""
+    def start_if_autostart(self):
+        """Start all processes if autostart is enabled and processes are fresh."""
         if (
             self.config.autostart
-            and deps_ready
             and self.processes
             and all(
                 p.state == state.ProcessState.STOPPED

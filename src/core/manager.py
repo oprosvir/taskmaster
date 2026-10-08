@@ -26,6 +26,7 @@ class ProcessManager:
         self.groups: dict[str, ProcessGroup] = {}
         self.draining_groups: list[ProcessGroup] = []
         self.config_restarts: dict[str, ProgramConfig] = {}
+        self.pending_autostart: set[str] = set()
         self.setup_programs(programs_cfg)
 
     def setup_programs(self, programs_cfg: dict[str, ProgramConfig]):
@@ -40,12 +41,18 @@ class ProcessManager:
     # =========================================================================
 
     def start_all(self):
-        """Start every group whose config enables autostart and whose dependencies are met."""
+        """Start every group whose config enables autostart and track pending dependencies."""
         for group in self.groups.values():
-            group.start_if_autostart(self._deps_ready(group))
+            if not group.config.autostart:
+                continue
+            if self._deps_ready(group):
+                group.start_if_autostart()
+            else:
+                self.pending_autostart.add(group.name)
 
     def stop_all(self):
         """Request a graceful stop for every active process."""
+        self.pending_autostart.clear()
         for group in self.groups.values():
             group.stop_all()
 
@@ -102,10 +109,7 @@ class ProcessManager:
         for group in self.draining_groups:
             group.tick()
 
-        # Autostart any pending autostart groups whose dependencies are now RUNNING
-        for group in self.groups.values():
-            group.start_if_autostart(self._deps_ready(group))
-
+        self._process_pending_autostart()
         self._process_draining_groups()
 
     # =========================================================================
@@ -129,10 +133,15 @@ class ProcessManager:
         group = ProcessGroup(name=name, config=cfg)
         group.create_processes()
         self.groups[name] = group
-        group.start_if_autostart(self._deps_ready(group))
+        if cfg.autostart:
+            if self._deps_ready(group):
+                group.start_if_autostart()
+            else:
+                self.pending_autostart.add(name)
 
     def _remove_group(self, name: str):
         """Stop an existing group and move it to draining_groups."""
+        self.pending_autostart.discard(name)
         group = self.groups.pop(name)
         group.stop_all()
         self.draining_groups.append(group)
@@ -171,7 +180,10 @@ class ProcessManager:
         started = []
         for group, procs in resolved:
             if action_name in ("start", "restart") and target == ALL_TARGET and not self._deps_ready(group):
+                if group.config.autostart:
+                    self.pending_autostart.add(group.name)
                 continue
+            self.pending_autostart.discard(group.name)
             action = getattr(group, action_name)
             action(procs)
             started.extend([proc.name for proc in (procs if procs is not None else group.processes)])
@@ -198,6 +210,19 @@ class ProcessManager:
                     return [(group, [proc])]
 
         raise ProgramNotFoundError(f"program {target!r} is not configured")
+
+    def _process_pending_autostart(self):
+        """Start pending autostart groups whose dependencies have become ready."""
+        if not self.pending_autostart:
+            return
+
+        for name in list(self.pending_autostart):
+            group = self.groups.get(name)
+            if group is None:
+                self.pending_autostart.discard(name)
+            elif self._deps_ready(group):
+                group.start_if_autostart()
+                self.pending_autostart.discard(name)
 
     def _process_draining_groups(self):
         """Remove stopped groups and start any pending replacements."""

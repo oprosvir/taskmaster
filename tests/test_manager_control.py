@@ -124,25 +124,16 @@ class ProcessGroupAutostartTests(unittest.TestCase):
         group.create_processes()
         group.start = Mock()
 
-        group.start_if_autostart(deps_ready=True)
+        group.start_if_autostart()
         group.start.assert_not_called()
 
-    def test_start_if_autostart_when_deps_not_ready_does_not_start(self):
+    def test_start_if_autostart_when_fresh_calls_start(self):
         cfg = ProgramConfig(name="worker", cmd="/bin/sleep 10", autostart=True)
         group = ProcessGroup(name="worker", config=cfg)
         group.create_processes()
         group.start = Mock()
 
-        group.start_if_autostart(deps_ready=False)
-        group.start.assert_not_called()
-
-    def test_start_if_autostart_when_ready_and_unstarted_calls_start(self):
-        cfg = ProgramConfig(name="worker", cmd="/bin/sleep 10", autostart=True)
-        group = ProcessGroup(name="worker", config=cfg)
-        group.create_processes()
-        group.start = Mock()
-
-        group.start_if_autostart(deps_ready=True)
+        group.start_if_autostart()
         group.start.assert_called_once_with()
 
     def test_start_if_autostart_does_not_start_if_processes_not_fresh(self):
@@ -152,7 +143,7 @@ class ProcessGroupAutostartTests(unittest.TestCase):
         group.processes[0].state = ProcessState.RUNNING
         group.start = Mock()
 
-        group.start_if_autostart(deps_ready=True)
+        group.start_if_autostart()
         group.start.assert_not_called()
 
     def test_is_running_property(self):
@@ -456,6 +447,43 @@ class ProcessDependencyControlTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, "COMMAND_FAILED")
         self.assertIn("cannot start 'web'", str(ctx.exception))
         self.assertIn("dependencies not RUNNING", str(ctx.exception))
+
+    def test_pending_autostart_tracking_lifecycle(self):
+        with patch("src.process.process.subprocess.Popen") as mock_popen:
+            pid_counter = itertools.count(100)
+            mock_popen.side_effect = lambda *args, **kwargs: Mock(
+                pid=next(pid_counter),
+                poll=Mock(return_value=None),
+            )
+            manager = ProcessManager({"db": self.db_cfg, "web": self.web_cfg})
+            manager.start_all()
+
+            # db starts immediately, web is deferred into pending_autostart
+            self.assertEqual(manager.pending_autostart, {"web"})
+
+            # While db is still STARTING, check_children keeps web in pending
+            manager.check_children()
+            self.assertEqual(manager.pending_autostart, {"web"})
+            self.assertEqual(manager.groups["web"].processes[0].state, ProcessState.STOPPED)
+
+            # Once db reaches RUNNING, check_children triggers autostart and clears pending
+            manager.groups["db"].processes[0].state = ProcessState.RUNNING
+            manager.check_children()
+            self.assertEqual(manager.pending_autostart, set())
+            self.assertEqual(manager.groups["web"].processes[0].state, ProcessState.STARTING)
+
+    def test_pending_autostart_discarded_on_manual_stop_and_stop_all(self):
+        with patch("src.process.process.subprocess.Popen"):
+            manager = ProcessManager({"db": self.db_cfg, "web": self.web_cfg})
+            manager.start_all()
+            self.assertIn("web", manager.pending_autostart)
+
+            manager.stop("web")
+            self.assertNotIn("web", manager.pending_autostart)
+
+            manager.pending_autostart.add("web")
+            manager.stop_all()
+            self.assertEqual(manager.pending_autostart, set())
 
 
 if __name__ == "__main__":
