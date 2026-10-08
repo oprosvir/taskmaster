@@ -29,7 +29,7 @@ Implemented bonuses include the **client/server** architecture (`taskmasterd` an
 
 ```text
 taskmaster/
-├── taskmasterd            # Daemon entry point (CLI args: -c/--config, default ./config.toml)
+├── taskmasterd            # Daemon entry point (CLI args: -c/--config, -f/--foreground, -d/--daemon)
 ├── taskmasterctl          # Interactive control shell entry point
 ├── config.toml            # Reference & evaluation configuration
 ├── README.md              # Project documentation
@@ -46,7 +46,7 @@ taskmaster/
 │   │   ├── daemon.py      #   TaskmasterDaemon: initialization, IPC routing, reload, shutdown
 │   │   ├── event_loop.py  #   EventLoop: selector polling + signal flags (SIGHUP, SIGINT, SIGTERM)
 │   │   ├── manager.py     #   ProcessManager: process groups, target resolution, diff applying
-│   │   └── logger.py      #   setup_logging(): rotating file + syslog + stdout
+│   │   └── logger.py      #   setup_logging(): rotating file + syslog + optional stdout (-f)
 │   ├── process/           # Process lifecycle and state management
 │   │   ├── state.py       #   ProcessState enum, ALLOWED_TRANSITIONS table, and tick handlers
 │   │   ├── process.py     #   Process: single process wrapper (Popen, PID, signals, logs)
@@ -208,9 +208,14 @@ depends_on   = ["db"]                           # default []: programs that must
 
 ### Starting the Daemon
 
-Run `taskmasterd` with default configuration (`./config.toml`):
+Run `taskmasterd` in silent mode (default, logs written to `logfile` and syslog; for background execution):
 ```bash
-./taskmasterd
+./taskmasterd &
+```
+
+Or run in the foreground with colored log output directly to `stdout` (`-f` / `--foreground`):
+```bash
+./taskmasterd -f
 ```
 
 Or specify a custom configuration file path using `-c` / `--config`:

@@ -20,7 +20,7 @@ MAX_SHUTDOWN_WAIT = 30
 class TaskmasterDaemon:
     """Owns the daemon's runtime state"""
 
-    def __init__(self, config_path: Path):
+    def __init__(self, config_path: Path, log_to_stdout: bool = False):
         self.config_path = config_path
         self.global_cfg, self.programs_cfg = load_config(self.config_path)
 
@@ -29,6 +29,7 @@ class TaskmasterDaemon:
         self.logger = setup_logging(
             logfile=self.global_cfg.logfile,
             loglevel=self.global_cfg.loglevel,
+            log_to_stdout=log_to_stdout,
         )
 
         self.manager = ProcessManager(self.programs_cfg)

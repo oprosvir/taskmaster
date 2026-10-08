@@ -12,12 +12,12 @@ EXIT_CONFIG_ERROR = 1
 EXIT_IPC_ERROR = 2
 
 
-def get_config_path() -> Path:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """
-    Parse the config path from command-line arguments.
+    Parse command-line arguments for taskmasterd.
 
     Returns:
-        Path: Path to the config file.
+        argparse.Namespace: Parsed arguments including config path and logging mode.
     """
     parser = argparse.ArgumentParser(description="Taskmaster process supervisor")
     parser.add_argument(
@@ -27,16 +27,32 @@ def get_config_path() -> Path:
         default=Path("config.toml"),
         help="Path to the configuration file (default: ./config.toml)",
     )
-    args = parser.parse_args()
+    parser.set_defaults(log_to_stdout=False)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "-f",
+        "--foreground",
+        dest="log_to_stdout",
+        action="store_true",
+        help="Run in foreground (output colored logs to stdout)",
+    )
+    group.add_argument(
+        "-d",
+        "--daemon",
+        dest="log_to_stdout",
+        action="store_false",
+        help="Run in daemon mode (suppress stdout logs, default)",
+    )
+    args = parser.parse_args(argv)
     if not args.config.is_file():
         raise ConfigNotFoundError(f"configuration file '{args.config}' not found")
-    return args.config
+    return args
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     try:
-        config_path = get_config_path()
-        daemon = TaskmasterDaemon(config_path)
+        args = parse_args(argv)
+        daemon = TaskmasterDaemon(args.config, log_to_stdout=args.log_to_stdout)
     except (ConfigNotFoundError, ConfigError, PrivilegeError) as error:
         print(f"[taskmasterd] {error}", file=sys.stderr)
         return EXIT_CONFIG_ERROR

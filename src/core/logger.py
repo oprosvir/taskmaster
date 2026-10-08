@@ -29,7 +29,7 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logging(logfile: Path, loglevel: str):
+def setup_logging(logfile: Path, loglevel: str, log_to_stdout: bool = False):
     """Configure and return the application-wide logger."""
     logger = logging.getLogger("taskmasterd")
     logger.handlers.clear()
@@ -48,10 +48,11 @@ def setup_logging(logfile: Path, loglevel: str):
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_formatter = ColoredFormatter(LOG_FORMAT, datefmt=DATE_FORMAT)
-    stream_handler.setFormatter(stream_formatter)
-    logger.addHandler(stream_handler)
+    if log_to_stdout:
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_formatter = ColoredFormatter(LOG_FORMAT, datefmt=DATE_FORMAT)
+        stream_handler.setFormatter(stream_formatter)
+        logger.addHandler(stream_handler)
 
     # Check logs: journalctl -f
     try:
