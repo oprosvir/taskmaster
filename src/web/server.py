@@ -1,4 +1,5 @@
 import json
+import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -17,8 +18,19 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
     html_content: bytes = b""
 
     def log_message(self, format: str, *args):
-        """Suppress default stderr logging for clean console output."""
+        """Log HTTP errors (4xx, 5xx) to stderr while suppressing routine 2xx access spam."""
+        if args and len(args) >= 2:
+            code = str(args[1])
+            if code.isdigit() and int(code) >= 400:
+                self._log_error(f'{self.address_string()} - "{args[0]}" {code}')
+                return
+        # Suppress routine 200/300 polling logs
         return
+
+    def _log_error(self, message: str) -> None:
+        """Write timestamped error log message to stderr with immediate flush."""
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{timestamp}] [taskmasterweb] ERROR: {message}", file=sys.stderr, flush=True)
 
     def _send_json(self, status_code: int, data: dict):
         """Helper to send a JSON response."""
@@ -82,7 +94,7 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
         if self.path == "/api/action":
             payload = self._read_json_body()
             if not payload or not isinstance(payload, dict):
-                self._log("Rejected invalid JSON action payload")
+                self._log_error("Rejected invalid JSON action payload")
                 self._send_json(
                     400,
                     {"ok": False, "error": {"code": "BAD_REQUEST", "message": "Invalid JSON payload"}},
@@ -93,7 +105,7 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
             target = payload.get("target")
 
             if action not in ("start", "stop", "restart") or not target:
-                self._log(f"Rejected invalid action request: action={action!r}, target={target!r}")
+                self._log_error(f"Rejected invalid action request: action={action!r}, target={target!r}")
                 self._send_json(
                     400,
                     {"ok": False, "error": {"code": "INVALID_ARGUMENT", "message": "Invalid action or target"}},
@@ -108,13 +120,13 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
                 )
                 self._send_json(200, response)
             except IPCConnectionError as error:
-                self._log(f"Action failed (daemon unavailable): {error}")
+                self._log_error(f"Action failed (daemon unavailable): {error}")
                 self._send_json(
                     503,
                     {"ok": False, "error": {"code": "DAEMON_UNAVAILABLE", "message": str(error)}},
                 )
             except IPCClientError as error:
-                self._log(f"Action failed (IPC error): {error}")
+                self._log_error(f"Action failed (IPC error): {error}")
                 self._send_json(
                     500,
                     {"ok": False, "error": {"code": "IPC_ERROR", "message": str(error)}},
@@ -128,13 +140,13 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
                 self._log("Config reload succeeded")
                 self._send_json(200, response)
             except IPCConnectionError as error:
-                self._log(f"Reload failed (daemon unavailable): {error}")
+                self._log_error(f"Reload failed (daemon unavailable): {error}")
                 self._send_json(
                     503,
                     {"ok": False, "error": {"code": "DAEMON_UNAVAILABLE", "message": str(error)}},
                 )
             except IPCClientError as error:
-                self._log(f"Reload failed (IPC error): {error}")
+                self._log_error(f"Reload failed (IPC error): {error}")
                 self._send_json(
                     500,
                     {"ok": False, "error": {"code": "IPC_ERROR", "message": str(error)}},
@@ -148,19 +160,20 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
                 self._log("Daemon shutdown succeeded")
                 self._send_json(200, response)
             except IPCConnectionError as error:
-                self._log(f"Shutdown failed (daemon unavailable): {error}")
+                self._log_error(f"Shutdown failed (daemon unavailable): {error}")
                 self._send_json(
                     503,
                     {"ok": False, "error": {"code": "DAEMON_UNAVAILABLE", "message": str(error)}},
                 )
             except IPCClientError as error:
-                self._log(f"Shutdown failed (IPC error): {error}")
+                self._log_error(f"Shutdown failed (IPC error): {error}")
                 self._send_json(
                     500,
                     {"ok": False, "error": {"code": "IPC_ERROR", "message": str(error)}},
                 )
             return
 
+        self._log_error(f'Path not found: {self.path}')
         self._send_json(404, {"ok": False, "error": {"code": "NOT_FOUND", "message": "Not Found"}})
 
 

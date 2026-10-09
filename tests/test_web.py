@@ -151,13 +151,15 @@ class TaskmasterWebCliTests(unittest.TestCase):
         args = taskmasterweb.parse_args([])
         self.assertEqual(args.port, 9001)
         self.assertEqual(args.host, "127.0.0.1")
-        self.assertEqual(str(args.socket), "/tmp/taskmaster.sock")
 
     def test_parse_args_custom_values(self):
-        args = taskmasterweb.parse_args(["-p", "8888", "-H", "0.0.0.0", "-s", "/tmp/custom.sock"])
+        args = taskmasterweb.parse_args(["-p", "8888", "-H", "0.0.0.0"])
         self.assertEqual(args.port, 8888)
         self.assertEqual(args.host, "0.0.0.0")
-        self.assertEqual(str(args.socket), "/tmp/custom.sock")
+
+    def test_exit_constants(self):
+        self.assertEqual(taskmasterweb.EXIT_OK, 0)
+        self.assertEqual(taskmasterweb.EXIT_ERROR, 1)
 
 
 if __name__ == "__main__":
