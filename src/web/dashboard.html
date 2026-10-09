@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taskmaster Dashboard</title>
+  <style>
+    :root {
+      --bg-body: #0b0f19;
+      --bg-card: #151d30;
+      --bg-card-hover: #1e293b;
+      --border-color: #26334d;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --color-running: #10b981;
+      --color-starting: #f59e0b;
+      --color-stopping: #f97316;
+      --color-stopped: #94a3b8;
+      --color-fatal: #ef4444;
+      --color-backoff: #a855f7;
+      --color-exited: #94a3b8;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding: 1.5rem;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 1.5rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      background: #1e293b;
+    }
+
+    .status-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      background: var(--color-stopped);
+    }
+    .status-dot.online { background: var(--color-running); box-shadow: 0 0 8px var(--color-running); }
+    .status-dot.offline { background: var(--color-fatal); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.45rem 0.85rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--bg-card-hover);
+      border-color: #3b82f6;
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    button.btn-primary { background: var(--accent); border-color: var(--accent); }
+    button.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+    button.btn-danger { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
+    button.btn-danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.3); border-color: #ef4444; }
+
+    button.btn-success { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7; }
+    button.btn-success:hover:not(:disabled) { background: rgba(16, 185, 129, 0.3); border-color: #10b981; }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 420px;
+    }
+
+    .toast {
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      animation: slideIn 0.2s ease-out;
+      border-left: 4px solid;
+    }
+    .toast.success { background: #064e3b; color: #d1fae5; border-color: #10b981; }
+    .toast.error { background: #7f1d1d; color: #fee2e2; border-color: #ef4444; }
+    .toast.info { background: #1e3a8a; color: #dbeafe; border-color: #3b82f6; }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Metrics Bar */
+    .metrics-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+
+    .metric-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 0.25rem;
+    }
+
+    /* Search & Table */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+
+    th {
+      padding: 0.75rem 1rem;
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid rgba(38, 51, 77, 0.4);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge.RUNNING { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge.STARTING { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge.STOPPING { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
+    .badge.STOPPED { background: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.4); }
+    .badge.FATAL { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .badge.BACKOFF { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .badge.EXITED { background: rgba(100, 116, 139, 0.2); color: #cbd5e1; border: 1px solid rgba(100, 116, 139, 0.4); }
+
+    .proc-name {
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 0.9rem;
+    }
+
+    .proc-cmd {
+      font-family: var(--font-mono);
+      font-size: 0.775rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+      max-width: 320px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mono-cell {
+      font-family: var(--font-mono);
+      font-size: 0.825rem;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .proc-reason {
+      font-family: var(--font-mono);
+      color: #e2e8f0;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .exit-code {
+      color: var(--color-starting);
+      font-weight: 600;
+    }
+
+    .dash-placeholder {
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    .action-group {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .tabs-bar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .tab-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 0.4rem 0.95rem;
+      border-radius: 0.375rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-main);
+      border-color: #3b82f6;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>Taskmaster</h1>
+        <div class="status-badge" id="daemonStatusBadge">
+          <span class="status-dot" id="daemonDot"></span>
+          <span id="daemonStatusText">Connecting...</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <label class="toggle-group">
+          <input type="checkbox" id="autoRefresh" checked>
+          <span>Auto-refresh</span>
+        </label>
+        <button onclick="fetchStatus()">Refresh</button>
+        <button class="btn-success" onclick="executeAction('start', 'all')">Start All</button>
+        <button class="btn-danger" onclick="executeAction('stop', 'all')">Stop All</button>
+        <button onclick="executeAction('restart', 'all')">Restart All</button>
+        <button onclick="reloadConfig()">Reload</button>
+      </div>
+    </header>
+
+    <div class="metrics-bar">
+      <div class="metric-card">
+        <div class="metric-title">Total Processes</div>
+        <div class="metric-value" id="metricTotal">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Running</div>
+        <div class="metric-value" style="color: var(--color-running)" id="metricRunning">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Starting / Backoff</div>
+        <div class="metric-value" style="color: var(--color-starting)" id="metricStarting">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Stopped / Fatal</div>
+        <div class="metric-value" style="color: var(--color-fatal)" id="metricStopped">0</div>
+      </div>
+    </div>
+
+    <div class="tabs-bar">
+      <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+      <button class="tab-btn" data-filter="running" onclick="setFilter('running')">Running</button>
+      <button class="tab-btn" data-filter="stopped" onclick="setFilter('stopped')">Stopped</button>
+      <button class="tab-btn" data-filter="fatal" onclick="setFilter('fatal')">Fatal</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Process</th>
+            <th>State</th>
+            <th>PID</th>
+            <th>Uptime</th>
+            <th>Exit / Details</th>
+            <th style="text-align: right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="processTableBody">
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading status...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let pollInterval = null;
+    let currentFilter = 'all';
+    let lastPrograms = [];
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+      });
+      if (lastPrograms.length > 0) {
+        renderPrograms(lastPrograms);
+      }
+    }
+
+    function matchesFilter(state, filter) {
+      if (filter === 'all') return true;
+      if (filter === 'running') return state === 'RUNNING' || state === 'STARTING';
+      if (filter === 'stopped') return state === 'STOPPED' || state === 'EXITED' || state === 'STOPPING';
+      if (filter === 'fatal') return state === 'FATAL' || state === 'BACKOFF';
+      return true;
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        if (data.ok && data.data && data.data.programs) {
+          updateConnectionStatus(true);
+          lastPrograms = data.data.programs;
+          renderPrograms(data.data.programs);
+        } else {
+          updateConnectionStatus(false, data.error?.message || 'Error response from daemon');
+        }
+      } catch (err) {
+        updateConnectionStatus(false, 'Cannot connect to taskmasterweb / daemon');
+      }
+    }
+
+    function updateConnectionStatus(isOnline, message = '') {
+      const dot = document.getElementById('daemonDot');
+      const text = document.getElementById('daemonStatusText');
+      if (isOnline) {
+        dot.className = 'status-dot online';
+        text.textContent = 'Daemon Online';
+      } else {
+        dot.className = 'status-dot offline';
+        text.textContent = 'Daemon Offline';
+        if (message) {
+          document.getElementById('processTableBody').innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--color-fatal); padding: 2.5rem;">
+                <strong>${message}</strong><br>
+                <span style="font-size: 0.8rem; color: var(--text-dim);">Verify taskmasterd is running at /tmp/taskmaster.sock</span>
+              </td>
+            </tr>`;
+        }
+      }
+    }
+
+    function renderPrograms(programs) {
+      const tbody = document.getElementById('processTableBody');
+      tbody.innerHTML = '';
+
+      let total = 0, running = 0, starting = 0, stopped = 0;
+      let visibleCount = 0;
+
+      programs.forEach(prog => {
+        prog.processes.forEach(proc => {
+          total++;
+          const state = proc.state;
+          if (state === 'RUNNING') running++;
+          else if (state === 'STARTING' || state === 'BACKOFF') starting++;
+          else stopped++;
+
+          if (!matchesFilter(state, currentFilter)) {
+            return;
+          }
+          visibleCount++;
+
+          const isAlive = (state === 'RUNNING' || state === 'STARTING');
+          const dashHtml = '<span class="dash-placeholder">—</span>';
+          const uptimeStr = proc.uptime_seconds !== null ? `${proc.uptime_seconds.toFixed(1)}s` : dashHtml;
+          const pidStr = proc.pid !== null ? `<code>${proc.pid}</code>` : dashHtml;
+
+          let reasonHtml = '';
+          const hasReason = Boolean(proc.stop_reason);
+          const hasExit = proc.exit_code !== null;
+
+          if (hasReason && hasExit) {
+            reasonHtml = `<span class="proc-reason">${proc.stop_reason} (<span class="exit-code">exit=${proc.exit_code}</span>)</span>`;
+          } else if (hasReason) {
+            reasonHtml = `<span class="proc-reason">${proc.stop_reason}</span>`;
+          } else if (hasExit) {
+            reasonHtml = `<span class="proc-reason"><span class="exit-code">exit=${proc.exit_code}</span></span>`;
+          } else {
+            reasonHtml = dashHtml;
+          }
+
+          const toggleBtn = isAlive
+            ? `<button class="btn-danger" onclick="executeAction('stop', '${proc.name}')">Stop</button>`
+            : `<button class="btn-success" onclick="executeAction('start', '${proc.name}')">Start</button>`;
+
+          const cmdStr = proc.command || prog.name;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>
+              <div class="proc-name">${proc.name}</div>
+              <div class="proc-cmd" title="${cmdStr}">${cmdStr}</div>
+            </td>
+            <td><span class="badge ${state}">${state}</span></td>
+            <td><span class="mono-cell">${pidStr}</span></td>
+            <td><span class="mono-cell">${uptimeStr}</span></td>
+            <td>${reasonHtml}</td>
+            <td style="text-align: right">
+              <div class="action-group" style="justify-content: flex-end;">
+                ${toggleBtn}
+                <button onclick="executeAction('restart', '${proc.name}')">Restart</button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+
+      if (visibleCount === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+              No processes match the "${currentFilter}" filter.
+            </td>
+          </tr>`;
+      }
+
+      document.getElementById('metricTotal').textContent = total;
+      document.getElementById('metricRunning').textContent = running;
+      document.getElementById('metricStarting').textContent = starting;
+      document.getElementById('metricStopped').textContent = stopped;
+    }
+
+    async function executeAction(action, target) {
+      try {
+        const res = await fetch('/api/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, target })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const accepted = data.data?.accepted ? `(${data.data.accepted.join(', ')})` : '';
+          showToast(`Success: ${action} ${target} accepted ${accepted}`, 'success');
+          setTimeout(fetchStatus, 300);
+        } else {
+          showToast(`Error: ${data.error?.message || 'Action failed'}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Request failed: ${err.message}`, 'error');
+      }
+    }
+
+    async function reloadConfig() {
+      try {
+        const res = await fetch('/api/reload', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          showToast('Configuration successfully reloaded', 'success');
+          setTimeout(fetchStatus, 300);
+        } else {
+          showToast(`Reload error: ${data.error?.message || 'Failed to reload'}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Request failed: ${err.message}`, 'error');
+      }
+    }
+
+    function setupPolling() {
+      const checkbox = document.getElementById('autoRefresh');
+      function reset() {
+        if (pollInterval) clearInterval(pollInterval);
+        if (checkbox.checked) {
+          pollInterval = setInterval(fetchStatus, 2000);
+        }
+      }
+      checkbox.addEventListener('change', reset);
+      reset();
+    }
+
+    // Initial load
+    fetchStatus();
+    setupPolling();
+  </script>
+</body>
+</html>

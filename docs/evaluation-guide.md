@@ -269,7 +269,31 @@ python3 -c 'print("{\"command\": \"" + "a"*70000 + "\"}")' | nc -U /tmp/taskmast
 
 ---
 
-## 5. Clean Shutdown & Post-Run Cleanup
+## 5. Web Dashboard Testing (`taskmasterweb`)
+
+Start the web dashboard in the background:
+```bash
+./taskmasterweb &
+sleep 1
+```
+
+Verify REST API and HTML dashboard:
+```bash
+# 1. Fetch HTML dashboard
+curl -s http://127.0.0.1:9001/ | grep "<title>"
+
+# 2. Query status API
+curl -s http://127.0.0.1:9001/api/status
+
+# 3. Trigger action via REST API
+curl -s -X POST http://127.0.0.1:9001/api/action \
+  -H "Content-Type: application/json" \
+  -d '{"action": "start", "target": "test_workers"}'
+```
+
+---
+
+## 6. Clean Shutdown & Post-Run Cleanup
 
 Send `shutdown` command to gracefully stop all programs, drain sockets, and terminate `taskmasterd`:
 

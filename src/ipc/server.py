@@ -112,7 +112,7 @@ class ServerIPC:
             self.clients[conn] = client
             try:
                 self.selector.register(conn, selectors.EVENT_READ, self._read_client)
-                self.logger.info("Accepted new IPC client connection on fd=%s", conn.fileno())
+                self.logger.debug("Accepted new IPC client connection on fd=%s", conn.fileno())
             except (OSError, ValueError):
                 self._close_client(client)  # roll back
 
@@ -176,7 +176,10 @@ class ServerIPC:
             self._queue_response(client, self._error(error.code, str(error)))
             return
 
-        self.logger.info("Executing command: %s", command)
+        if command.get("command") == "status":
+            self.logger.debug("Executing command: %s", command)
+        else:
+            self.logger.info("Executing command: %s", command)
 
         # command execution and error mapping
         try:
@@ -300,4 +303,4 @@ class ServerIPC:
                 pass
 
             client.socket = None
-            self.logger.info("Client connection on fd=%s closed.", fd)
+            self.logger.debug("Client connection on fd=%s closed.", fd)

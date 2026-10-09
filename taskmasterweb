@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+import argparse
+import sys
+from pathlib import Path
+
+from src.ipc.protocol import SOCKET_PATH
+from src.web.server import run_server
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments for taskmasterweb."""
+    parser = argparse.ArgumentParser(description="Taskmaster Web Dashboard")
+    parser.add_argument(
+        "-p",
+        "--port",
+        type=int,
+        default=9001,
+        help="HTTP port to bind (default: 9001)",
+    )
+    parser.add_argument(
+        "-H",
+        "--host",
+        default="127.0.0.1",
+        help="Host address to bind (default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "-s",
+        "--socket",
+        type=Path,
+        default=SOCKET_PATH,
+        help="Path to the taskmasterd Unix socket (default: /tmp/taskmaster.sock)",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    try:
+        run_server(host=args.host, port=args.port, socket_path=args.socket)
+    except OSError as error:
+        print(f"[taskmasterweb] Error: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

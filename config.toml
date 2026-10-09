@@ -206,3 +206,20 @@ autostart = false
 cmd = "/usr/bin/sleep 30"
 depends_on = "test_dep_db"
 autostart = false
+
+# =========================================================================
+# WEB DASHBOARD (BONUS)
+# =========================================================================
+# Taskmaster manages its own web dashboard as a supervised child process.
+
+[program.web_dashboard]
+cmd          = "./taskmasterweb --host 0.0.0.0 --port 9001"
+autostart    = false
+autorestart  = "unexpected"
+exitcodes    = [0]
+starttime    = 2
+startretries = 3
+stopsignal   = "TERM"
+stoptime     = 5
+stdout       = "./logs/web_dashboard.log"
+stderr       = "./logs/web_dashboard.err"

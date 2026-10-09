@@ -5,7 +5,7 @@ Taskmaster is a **job-control daemon modeled on `supervisor` 3.1**, implemented 
 It starts programs as child processes, keeps them alive according to their config, hot-reloads the config
 on `SIGHUP`, logs what happens to a file, and comes with a control shell (`status/start/stop/restart/reload/shutdown`).
 
-Implemented bonuses include the **client/server** architecture (`taskmasterd` and `taskmasterctl` over a Unix socket), **privilege drop**, and **advanced logging** (syslog + rotating file). An additional **dependency ordering** feature (`depends_on`) is implemented beyond the subject requirements.
+Implemented bonuses include the **client/server** architecture (`taskmasterd` and `taskmasterctl` over a Unix socket), **privilege drop**, and **advanced logging** (syslog + rotating file). Additional extensions implemented beyond the subject requirements include **dependency ordering** (`depends_on`) and a **Web Dashboard** (`taskmasterweb` on port 9001).
 
 <img src="docs/assets/banner.png" alt="Taskmaster Hero Banner" width="800">
 
@@ -31,6 +31,7 @@ Implemented bonuses include the **client/server** architecture (`taskmasterd` an
 taskmaster/
 ├── taskmasterd            # Daemon entry point (CLI args: -c/--config, -f/--foreground, -d/--daemon)
 ├── taskmasterctl          # Interactive control shell entry point
+├── taskmasterweb          # Web dashboard client entry point (HTTP on :9001)
 ├── config.toml            # Reference & evaluation configuration
 ├── README.md              # Project documentation
 ├── docs/
@@ -57,6 +58,9 @@ taskmaster/
 │       ├── client.py      #   ClientIPC: one request per connection (ctl side)
 │       ├── parser.py      #   Command parser (shlex, argument count & type validation)
 │       └── shell.py       #   REPL: readline history/completion, response rendering
+│   └── web/               # Web dashboard and HTTP REST API
+│       ├── server.py      #   ThreadingHTTPServer, REST handlers (/api/status, /api/action)
+│       └── dashboard.html #   Self-contained SPA dashboard (vanilla JS/CSS)
 ├── tests/                 # unittest suites
 └── logs/                  # runtime output (git-ignored)
 ```
@@ -228,6 +232,18 @@ Or specify a custom configuration file path using `-c` / `--config`:
 In another terminal, launch `taskmasterctl`:
 ```bash
 ./taskmasterctl
+```
+
+### Using the Web Dashboard
+
+Launch the web interface (default port 9001):
+```bash
+./taskmasterweb
+```
+Open `http://127.0.0.1:9001` in any browser to monitor status and trigger actions with real-time auto-refresh.
+Customize the port or host using `-p` / `--port` and `-H` / `--host`:
+```bash
+./taskmasterweb -p 9000 -H 0.0.0.0
 ```
 
 ### Running the Test Suite

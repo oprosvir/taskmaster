@@ -69,6 +69,7 @@ For `status`, it contains this stable representation:
       "processes": [
         {
           "name": "worker_0",
+          "command": "/bin/sleep 60",
           "state": "RUNNING",
           "pid": 1234,
           "uptime_seconds": 42.3,

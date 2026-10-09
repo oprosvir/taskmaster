@@ -65,6 +65,7 @@ class ProcessManager:
                 "processes": [
                     {
                         "name": proc.name,
+                        "command": proc.config.cmd,
                         "state": proc.state.name,
                         "pid": proc.pid,
                         "uptime_seconds": proc.uptime,

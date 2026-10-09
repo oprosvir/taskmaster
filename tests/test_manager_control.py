@@ -79,6 +79,7 @@ class ProcessManagerTargetTests(unittest.TestCase):
             [
                 {
                     "name": "worker_1",
+                    "command": "/bin/sleep 60",
                     "state": "STOPPED",
                     "pid": None,
                     "uptime_seconds": None,
