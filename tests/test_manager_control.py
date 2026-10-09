@@ -397,6 +397,29 @@ class ProcessDependencyControlTests(unittest.TestCase):
         self.assertEqual(manager.groups["db"].processes[0].state, ProcessState.STARTING)
         self.assertEqual(manager.groups["web"].processes[0].state, ProcessState.STOPPED)
 
+    def test_start_all_with_unready_dependencies_starts_when_dependency_becomes_running(self):
+        self.db_cfg.autostart = False
+        self.web_cfg.autostart = False
+
+        manager = ProcessManager({"db": self.db_cfg, "web": self.web_cfg})
+        with patch("src.process.process.subprocess.Popen") as mock_popen:
+            pid_counter = itertools.count(100)
+            mock_popen.side_effect = lambda *args, **kwargs: Mock(
+                pid=next(pid_counter),
+                poll=Mock(return_value=None),
+            )
+            started = manager.start("all")
+            self.assertIn("db", started)
+            self.assertNotIn("web", started)
+            self.assertIn("web", manager.pending_autostart)
+            self.assertEqual(manager.groups["web"].processes[0].state, ProcessState.STOPPED)
+
+            # Once db reaches RUNNING, check_children triggers web start
+            manager.groups["db"].processes[0].state = ProcessState.RUNNING
+            manager.check_children()
+            self.assertNotIn("web", manager.pending_autostart)
+            self.assertEqual(manager.groups["web"].processes[0].state, ProcessState.STARTING)
+
     def test_explicitly_stopped_group_is_not_re_autostarted(self):
         with patch("src.process.process.subprocess.Popen") as mock_popen:
             pid_counter = itertools.count(100)

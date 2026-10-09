@@ -180,8 +180,7 @@ class ProcessManager:
         started = []
         for group, procs in resolved:
             if action_name in ("start", "restart") and target == ALL_TARGET and not self._deps_ready(group):
-                if group.config.autostart:
-                    self.pending_autostart.add(group.name)
+                self.pending_autostart.add(group.name)
                 continue
             self.pending_autostart.discard(group.name)
             action = getattr(group, action_name)
@@ -221,7 +220,7 @@ class ProcessManager:
             if group is None:
                 self.pending_autostart.discard(name)
             elif self._deps_ready(group):
-                group.start_if_autostart()
+                group.start()
                 self.pending_autostart.discard(name)
 
     def _process_draining_groups(self):
