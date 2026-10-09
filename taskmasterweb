@@ -2,7 +2,6 @@
 import argparse
 import sys
 
-from src.ipc.protocol import SOCKET_PATH
 from src.web.server import run_server
 
 
@@ -32,7 +31,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        run_server(host=args.host, port=args.port, socket_path=SOCKET_PATH)
+        run_server(host=args.host, port=args.port)
     except OSError as error:
         print(f"[taskmasterweb] Error: {error}", file=sys.stderr)
         return EXIT_ERROR

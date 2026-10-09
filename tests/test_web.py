@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from src.ipc.client import IPCConnectionError
 from src.web.server import create_server
@@ -22,9 +22,13 @@ _loader.exec_module(taskmasterweb)
 
 class WebServerTests(unittest.TestCase):
     def setUp(self):
-        self.mock_client = MagicMock()
+        self.client_patcher = patch("src.web.server.ClientIPC")
+        self.mock_client_cls = self.client_patcher.start()
+        self.addCleanup(self.client_patcher.stop)
+        self.mock_client = self.mock_client_cls.return_value
+
         # Ephemeral port 0 binds to an available OS port automatically
-        self.server = create_server("127.0.0.1", 0, client=self.mock_client)
+        self.server = create_server("127.0.0.1", 0)
         self.port = self.server.server_address[1]
         self.base_url = f"http://127.0.0.1:{self.port}"
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)

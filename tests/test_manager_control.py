@@ -257,6 +257,10 @@ class ProcessSignallingTests(unittest.TestCase):
 
 class ProcessDependencyControlTests(unittest.TestCase):
     def setUp(self):
+        self.killpg_patcher = patch("src.process.process.os.killpg")
+        self.mock_killpg = self.killpg_patcher.start()
+        self.addCleanup(self.killpg_patcher.stop)
+
         self.db_cfg = ProgramConfig(
             name="db",
             cmd="/bin/sleep 60",

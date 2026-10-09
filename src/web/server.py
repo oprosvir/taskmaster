@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Type
 
 from src.ipc.client import ClientIPC, IPCClientError, IPCConnectionError
-from src.ipc.protocol import SOCKET_PATH
 
 DASHBOARD_HTML_PATH = Path(__file__).parent / "dashboard.html"
 
@@ -180,17 +179,11 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
 def create_server(
     host: str = "127.0.0.1",
     port: int = 9001,
-    client: ClientIPC | None = None,
 ) -> ThreadingHTTPServer:
     """Create and return a configured ThreadingHTTPServer instance."""
-    if client is None:
-        client = ClientIPC(SOCKET_PATH)
+    client = ClientIPC()
 
-    # Load HTML template content once
-    if DASHBOARD_HTML_PATH.is_file():
-        html_bytes = DASHBOARD_HTML_PATH.read_bytes()
-    else:
-        html_bytes = b"<h1>Taskmaster Dashboard (Template not found)</h1>"
+    html_bytes = DASHBOARD_HTML_PATH.read_bytes()
 
     handler_cls: Type[TaskmasterWebHandler] = type(
         "CustomTaskmasterWebHandler",
@@ -204,13 +197,10 @@ def create_server(
 def run_server(
     host: str = "127.0.0.1",
     port: int = 9001,
-    socket_path: Path = SOCKET_PATH,
 ):
     """Run the web dashboard HTTP server until interrupted."""
-    client = ClientIPC(socket_path)
-    server = create_server(host=host, port=port, client=client)
+    server = create_server(host=host, port=port)
     print(f"[taskmasterweb] Dashboard running at http://{host}:{port}/", flush=True)
-    print(f"[taskmasterweb] Connected to daemon socket: {socket_path}", flush=True)
     print("[taskmasterweb] Press Ctrl+C to stop.", flush=True)
     try:
         server.serve_forever()
