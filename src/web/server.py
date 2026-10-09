@@ -31,22 +31,18 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{timestamp}] [taskmasterweb] ERROR: {message}", file=sys.stderr, flush=True)
 
-    def _send_json(self, status_code: int, data: dict):
-        """Helper to send a JSON response."""
-        payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    def _send_bytes(self, status_code: int, payload: bytes, content_type: str):
+        """Helper to send a binary or text response with headers."""
         self.send_response(status_code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
 
-    def _send_html(self, status_code: int, content: bytes):
-        """Helper to send an HTML response."""
-        self.send_response(status_code)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(content)))
-        self.end_headers()
-        self.wfile.write(content)
+    def _send_json(self, status_code: int, data: dict):
+        """Helper to send a JSON response."""
+        payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        self._send_bytes(status_code, payload, "application/json; charset=utf-8")
 
     def _read_json_body(self) -> dict | None:
         """Parse request body as JSON."""
@@ -62,7 +58,7 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET requests."""
         if self.path in ("/", "/index.html"):
-            self._send_html(200, self.html_content)
+            self._send_bytes(200, self.html_content, "text/html; charset=utf-8")
             return
 
         if self.path == "/api/status":
@@ -176,10 +172,7 @@ class TaskmasterWebHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"ok": False, "error": {"code": "NOT_FOUND", "message": "Not Found"}})
 
 
-def create_server(
-    host: str = "127.0.0.1",
-    port: int = 9001,
-) -> ThreadingHTTPServer:
+def create_server(host: str, port: int) -> ThreadingHTTPServer:
     """Create and return a configured ThreadingHTTPServer instance."""
     client = ClientIPC()
 
